@@ -1,0 +1,5 @@
+language: csharp
+solution: Forestual-2-Server-CS.sln
+branches:
+  except:
+  - snapshot
