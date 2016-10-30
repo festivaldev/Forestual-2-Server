@@ -37,7 +37,7 @@
       <HintPath>..\Dependencies\Forestual 2 Core.dll</HintPath>
     </Reference>
     <Reference Include="Newtonsoft.Json">
-      <HintPath>...\Dependencies\Newtonsoft.Json.dll</HintPath>
+      <HintPath>..\Dependencies\Newtonsoft.Json.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
