@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
@@ -14,13 +16,22 @@ namespace Forestual2ServerCS.Internal
 {
     public class Server
     {
-        public static Storage.Database.Values Database;
-        public static Storage.Configuration.Values Config;
+        public delegate void DConsoleMessageReceivedHandler(string content, bool newLine = true);
+        public delegate void DConsoleColorChangedHandler(Color color);
+        public delegate void DConnectedHandler(string address);
 
-        public static List<Connection> Connections;
-        public static List<Channel> Channels;
-        private Channel Forestual;
-        private Account Root;
+        public event DConsoleMessageReceivedHandler ConsoleMessageReceived;
+        public event DConsoleColorChangedHandler ConsoleColorChanged;
+        public event DConnectedHandler Connected;
+
+        public static Storage.Database.Values Database = Storage.Database.Helper.GetDatabase();
+        public static Storage.Configuration.Values Config = Storage.Configuration.Helper.GetConfig();
+        public static Storage.Localization.Values Lcl;
+
+        public static List<Connection> Connections = new List<Connection>();
+        public static List<Channel> Channels = new List<Channel>();
+        private Channel Forestual = new Channel();
+        private Account Root = new Account();
 
         private RSACryptoServiceProvider PreServiceProvider = new RSACryptoServiceProvider(4096);
         private RSACryptoServiceProvider ServiceProvider = new RSACryptoServiceProvider(4096);
@@ -43,7 +54,8 @@ namespace Forestual2ServerCS.Internal
             ExitThreadOnPurpose = false;
             ServiceProvider.FromXmlString(PrivateKey);
             PreServiceProvider.FromXmlString(PublicKey);
-            // Localization
+            if (Storage.Localization.Helper.Exists(Config.ServerLanguage))
+                Lcl = Storage.Localization.Helper.GetLocalization(Config.ServerLanguage);
             Forestual.Id = "lnr-forestual";
             Forestual.Name = "Forestual";
             Forestual.Owner = Root;
@@ -61,7 +73,7 @@ namespace Forestual2ServerCS.Internal
             Channels.AddRange(Database.Channels);
             Channels.Add(Forestual);
             Management.PunishmentManager.DisposeExceededRecords();
-            // RaiseEvent Connected
+            Connected?.Invoke($"{Dns.GetHostEntry(Dns.GetHostName()).AddressList.ToList().Find(ip => ip.AddressFamily == AddressFamily.InterNetwork)}:{Config.ServerPort}");
             return true;
         }
 
@@ -79,61 +91,63 @@ namespace Forestual2ServerCS.Internal
 
         private void Wait() {
             while (true) {
-                FClient = FServer.AcceptTcpClient();
-                var Connection = new Connection(FClient.GetStream());
-                var RawStreamContent = Connection.GetRawStreamContent();
-                var DRawStreamContent = Cryptography.RSADecrypt(RawStreamContent, ServiceProvider);
-                if (DRawStreamContent == F2CE.Action.GetServerMetaData.ToString()) {
-                    Connection.SetRawStreamContent(Cryptography.RSAEncrypt(JsonConvert.SerializeObject(GetMetaData()), PreServiceProvider));
-                    Connection.Dispose();
-                    Management.PunishmentManager.DisposeExceededRecords();
-                } else {
-                    var SessionData = DRawStreamContent.Split('|');
-                    var AesData = new AesData {
-                        Key = Convert.FromBase64String(SessionData[0]),
-                        IV = Convert.FromBase64String(SessionData[1])
-                    };
-                    Connection.AesData = AesData;
-                    Connection.HmacKey = Convert.FromBase64String(SessionData[2]);
-                    var AuthData = Connection.GetStreamContent().Split('|');
-                    var Account = Storage.Database.Helper.GetAccount(AuthData[0]);
-                    if (Account != null) {
-                        if (Account.Password == AuthData[1]) {
-                            var PunishmentId = Management.PunishmentManager.CheckForRecords(Account.Id, F2CE.PunishmentType.Bann, F2CE.PunishmentType.BannTemporarily);
-                            if (PunishmentId != "-1") {
-                                var Punishment = Management.PunishmentManager.GetRecord(PunishmentId);
-                                Connection.SetStreamContent(string.Join("|", F2CE.Action.SetState.ToString(), F2CE.ClientState.Banned.ToString(), JsonConvert.SerializeObject(Punishment)));
+                try {
+                    FClient = FServer.AcceptTcpClient();
+                    var Connection = new Connection(FClient.GetStream());
+                    var RawStreamContent = Connection.GetRawStreamContent();
+                    var DRawStreamContent = Cryptography.RSADecrypt(RawStreamContent, ServiceProvider);
+                    if (DRawStreamContent == F2CE.Action.GetServerMetaData.ToString()) {
+                        Connection.SetRawStreamContent(Cryptography.RSAEncrypt(JsonConvert.SerializeObject(GetMetaData()), PreServiceProvider));
+                        Connection.Dispose();
+                        Management.PunishmentManager.DisposeExceededRecords();
+                    } else {
+                        var SessionData = DRawStreamContent.Split('|');
+                        var AesData = new AesData {
+                            Key = Convert.FromBase64String(SessionData[0]),
+                            IV = Convert.FromBase64String(SessionData[1])
+                        };
+                        Connection.AesData = AesData;
+                        Connection.HmacKey = Convert.FromBase64String(SessionData[2]);
+                        var AuthData = Connection.GetStreamContent().Split('|');
+                        var Account = Storage.Database.Helper.GetAccount(AuthData[0]);
+                        if (Account != null) {
+                            if (Account.Password == AuthData[1]) {
+                                var PunishmentId = Management.PunishmentManager.CheckForRecords(Account.Id, F2CE.PunishmentType.Bann, F2CE.PunishmentType.BannTemporarily);
+                                if (PunishmentId != "-1") {
+                                    var Punishment = Management.PunishmentManager.GetRecord(PunishmentId);
+                                    Connection.SetStreamContent(string.Join("|", F2CE.Action.SetState.ToString(), F2CE.ClientState.Banned.ToString(), JsonConvert.SerializeObject(Punishment)));
+                                } else {
+                                    Connection.Owner = Account;
+                                    Connection.Channel = Forestual;
+                                    Connections.Add(Connection);
+                                    var ListeningThread = new Thread(Listen);
+                                    ListeningThread.Start(Connection);
+                                    Connection.SetStreamContent(string.Join("|", F2CE.Action.LoginResult.ToString(), "hej"));
+                                    var Flags = new List<F2CE.Flag>();
+                                    Flags.AddRange(Connection.Owner.Flags);
+                                    Flags.AddRange(Database.Ranks.Find(r => r.Id == Connection.Owner.RankId).Flags);
+                                    Connection.SetStreamContent(string.Join("|", F2CE.Action.SetFlags, JsonConvert.SerializeObject(Flags)));
+                                    Forestual.MemberIds.Add(Account.Id);
+                                    Management.ChannelManager.SendChannelList();
+                                    var Message = new Forestual2Core.Message {
+                                        Time = DateTime.Now.ToShortTimeString(),
+                                        Type = F2CE.MessageType.Center,
+                                        Content = $"{Connection.Owner.Name} (@{Connection.Owner.Id}) hat den Chat betreten."
+                                        // Demo Purposes
+                                    };
+                                    SendMessageToAll(Message);
+                                    Connection.Owner.Online = true;
+                                    SendToAll(string.Join("|", F2CE.Action.SetAccountList, JsonConvert.SerializeObject(GetAccountsWithoutPassword())));
+                                    PrintToConsole($"{Connection.Owner.Name} (@{Connection.Owner.Id}) joined.", ColorTranslator.FromHtml("#07D159"));
+                                }
                             } else {
-                                Connection.Owner = Account;
-                                Connection.Channel = Forestual;
-                                Connections.Add(Connection);
-                                var ListeningThread = new Thread(Listen);
-                                ListeningThread.Start(Connection);
-                                Connection.SetStreamContent(string.Join("|", F2CE.Action.LoginResult.ToString(), "hej"));
-                                var Flags = new List<F2CE.Flag>();
-                                Flags.AddRange(Connection.Owner.Flags);
-                                Flags.AddRange(Database.Ranks.Find(r => r.Id == Connection.Owner.RankId).Flags);
-                                Connection.SetStreamContent(string.Join("|", F2CE.Action.SetFlags, JsonConvert.SerializeObject(Flags)));
-                                Forestual.MemberIds.Add(Account.Id);
-                                // Send Channel List
-                                var Message = new Forestual2Core.Message {
-                                    Time = DateTime.Now.ToShortTimeString(),
-                                    Type = F2CE.MessageType.Center,
-                                    Content = $"{Connection.Owner.Name} (@{Connection.Owner.Id}) hat den Chat betreten."
-                                    // Demo Purposes
-                                };
-                                SendMessageToAll(Message);
-                                Connection.Owner.Online = true;
-                                SendToAll(string.Join("|", F2CE.Action.SetAccountList, JsonConvert.SerializeObject(GetAccountsWithoutPassword())));
-                                // RaiseEvent PrintToConsole
+                                Connection.SetStreamContent(string.Join("|", F2CE.Action.LoginResult, "authentificationFailed"));
                             }
                         } else {
-                            Connection.SetStreamContent(string.Join("|", F2CE.Action.LoginResult, "authentificationFailed"));
+                            Connection.SetStreamContent(string.Join("|", F2CE.Action.LoginResult, "accountUnknown"));
                         }
-                    } else {
-                        Connection.SetStreamContent(string.Join("|", F2CE.Action.LoginResult, "accountUnknown"));
                     }
-                }
+                } catch { }
             }
         }
 
@@ -249,15 +263,21 @@ namespace Forestual2ServerCS.Internal
                         Connection.Channel.Owner = null;
                     if (Connection.Channel.MemberIds.Count == 0 && !Connection.Channel.Persistent) {
                         Channels.Remove(Connection.Channel);
-                        // Send Channel List
+                        Management.ChannelManager.SendChannelList();
                     }
                     Connection.Owner.Online = false;
                     SendToAll(string.Join("|", F2CE.Action.SetAccountList, JsonConvert.SerializeObject(GetAccountsWithoutPassword())));
-                    // RaiseEvent Print To Console
+                    PrintToConsole($"{Connection.Owner.Name} (@{Connection.Owner.Id}) disconnected.", ColorTranslator.FromHtml("#FC3539"));
                     Connection.Dispose();
                     return;
                 }
             }
+        }
+
+        private void PrintToConsole(string content, Color color, bool newLine = true) {
+            ConsoleColorChanged?.Invoke(color);
+            ConsoleMessageReceived?.Invoke(content, newLine);
+            ConsoleColorChanged?.Invoke(SystemColors.WindowFrame);
         }
 
         private string ComposePrefix(string accountId) {
