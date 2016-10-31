@@ -40,7 +40,7 @@ namespace Forestual2ServerCS.Internal
 
         private TcpListener FServer;
         private TcpClient FClient;
-        private IPEndPoint FIPEndPnt = new IPEndPoint(IPAddress.Any, int.Parse(Config.ServerPort));
+        private readonly IPEndPoint FIPEndPnt = new IPEndPoint(IPAddress.Any, int.Parse(Config.ServerPort));
 
         private Thread WaitingThread;
         private bool ExitThreadOnPurpose;

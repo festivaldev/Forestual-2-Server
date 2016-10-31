@@ -186,6 +186,7 @@
             this.Controls.Add(this.pnlStatus);
             this.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.Name = "MainWindow";
+            this.ShowIcon = false;
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "Forestual 2";
             this.Panel5.ResumeLayout(false);

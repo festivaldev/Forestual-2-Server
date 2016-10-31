@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 using Forestual2Core;
@@ -22,6 +23,10 @@ namespace Forestual2ServerCS.Storage.Database
             return File.Exists(Application.StartupPath + "\\database.json");
         }
 
+        public static void CreateDefault() {
+            File.WriteAllText(Application.StartupPath + "\\database.json", JsonConvert.SerializeObject(new Values(), Formatting.Indented));
+        }
+
         public static void Save() {
             Server.Database.Channels.Clear();
             Server.Database.Channels.AddRange(Server.Channels.FindAll(c => c.Persistent && c.Id != "lnr-forestual"));
@@ -29,12 +34,22 @@ namespace Forestual2ServerCS.Storage.Database
             Server.Database = GetDatabase();
         }
 
-        public static Account GetAccount(string id) {
-            return Server.Database.Accounts.Find(a => a.Id == id);
+        public static bool AccountExists(string id) {
+            return AccountExists(Server.Database, id);
         }
 
-        public static bool AccountExists(string id) {
-            return Server.Database.Accounts.Find(a => a.Id == id) != null;
+        public static bool AccountExists(Values values, string id) {
+            var Ids = new List<string>();
+            values.Accounts.ForEach(a => Ids.Add(a.Id));
+            return Ids.Contains(id);
+        }
+
+        public static Account GetAccount(string id) {
+            return GetAccount(Server.Database, id);
+        }
+
+        public static Account GetAccount(Values values, string id) {
+            return values.Accounts.Find(a => a.Id == id);
         }
 
         public static string GetAccountId(string name) {
@@ -42,7 +57,11 @@ namespace Forestual2ServerCS.Storage.Database
         }
 
         public static bool AccountHasFlags(Account account, params Flag[] flags) {
-            return flags.All(f => account.Flags.Contains(f) || Server.Database.Ranks.Find(r => r.Id == account.RankId).Flags.Contains(f) || account.Flags.Contains(Flag.Wildcard) || Server.Database.Ranks.Find(r => r.Id == account.Id).Flags.Contains(Flag.Wildcard));
+            return AccountHasFlags(Server.Database, account, flags);
+        }
+
+        public static bool AccountHasFlags(Values values, Account account, params Flag[] flags) {
+            return flags.All(f => account.Flags.Contains(f) || values.Ranks.Find(r => r.Id == account.RankId).Flags.Contains(f) || account.Flags.Contains(Flag.Wildcard) || values.Ranks.Find(r => r.Id == account.RankId).Flags.Contains(Flag.Wildcard));
         }
     }
 }
