@@ -52,7 +52,7 @@ namespace Forestual2ServerCS
             return ServerIsRunning;
         }
 
-        private void StopServer() {
+        public void StopServer() {
             try {
                 Server.Stop();
             } catch { }
