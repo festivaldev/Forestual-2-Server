@@ -1,5 +1,5 @@
-﻿using Forestual2Core;
-using F2CE = Forestual2Core.Enumerations;
+﻿using Forestual2CoreCS;
+using F2CE = Forestual2CoreCS.Enumerations;
 using Forestual2ServerCS.Internal;
 using Newtonsoft.Json;
 

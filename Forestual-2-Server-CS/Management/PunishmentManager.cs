@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Linq;
-using Forestual2Core;
-using F2CE = Forestual2Core.Enumerations;
+using Forestual2CoreCS;
+using F2CE = Forestual2CoreCS.Enumerations;
 using Forestual2ServerCS.Internal;
 using Newtonsoft.Json;
 
@@ -32,6 +32,10 @@ namespace Forestual2ServerCS.Management
                 State = F2CE.ClientState.Muted;
             }
             Connection.SetStreamContent(string.Join("|", F2CE.Action.SetState.ToString(), State.ToString(), JsonConvert.SerializeObject(punishment)));
+
+            // Extension Management
+            ListenerManager.InvokeEvent(Event.PunishmentRecorded, punishment);
+            //End
         }
 
         public static string CheckForRecords(string accountId, params F2CE.PunishmentType[] types) {
