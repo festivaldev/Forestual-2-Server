@@ -1,9 +1,8 @@
-﻿using System.Collections.Generic;
-using System.IO;
+﻿using System.IO;
 using System.Linq;
 using System.Windows.Forms;
-using Forestual2Core;
-using Forestual2Core.Enumerations;
+using Forestual2CoreCS;
+using F2CE = Forestual2CoreCS.Enumerations;
 using Forestual2ServerCS.Internal;
 using Newtonsoft.Json;
 
@@ -39,9 +38,7 @@ namespace Forestual2ServerCS.Storage.Database
         }
 
         public static bool AccountExists(Values values, string id) {
-            var Ids = new List<string>();
-            values.Accounts.ForEach(a => Ids.Add(a.Id));
-            return Ids.Contains(id);
+            return values.Accounts.Any(Account => Account.Id == id);
         }
 
         public static Account GetAccount(string id) {
@@ -56,12 +53,12 @@ namespace Forestual2ServerCS.Storage.Database
             return Server.Database.Accounts.Find(a => a.Name == name).Id;
         }
 
-        public static bool AccountHasFlags(Account account, params Flag[] flags) {
+        public static bool AccountHasFlags(Account account, params F2CE.Flag[] flags) {
             return AccountHasFlags(Server.Database, account, flags);
         }
 
-        public static bool AccountHasFlags(Values values, Account account, params Flag[] flags) {
-            return flags.All(f => account.Flags.Contains(f) || values.Ranks.Find(r => r.Id == account.RankId).Flags.Contains(f) || account.Flags.Contains(Flag.Wildcard) || values.Ranks.Find(r => r.Id == account.RankId).Flags.Contains(Flag.Wildcard));
+        public static bool AccountHasFlags(Values values, Account account, params F2CE.Flag[] flags) {
+            return flags.All(f => account.Flags.Contains(f) || values.Ranks.Find(r => r.Id == account.RankId).Flags.Contains(f) || account.Flags.Contains(F2CE.Flag.Wildcard) || values.Ranks.Find(r => r.Id == account.RankId).Flags.Contains(F2CE.Flag.Wildcard));
         }
     }
 }

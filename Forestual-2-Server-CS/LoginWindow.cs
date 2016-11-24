@@ -1,6 +1,6 @@
 ﻿using System.Windows.Forms;
-using Forestual2Core;
-using F2CE = Forestual2Core.Enumerations;
+using Forestual2CoreCS;
+using F2CE = Forestual2CoreCS.Enumerations;
 
 namespace Forestual2ServerCS
 {
@@ -12,9 +12,9 @@ namespace Forestual2ServerCS
 
         public LoginWindow() {
             InitializeComponent();
-            this.Load += LoginWindow_Load;
-            this.Shown += LoginWindow_Shown;
-            this.Closing += LoginWindow_Closing;
+            Load += LoginWindow_Load;
+            Shown += LoginWindow_Shown;
+            Closing += LoginWindow_Closing;
             btnLogin.Click += BtnLogin_Click;
         }
 
@@ -28,11 +28,11 @@ namespace Forestual2ServerCS
                             ((MainWindow) Owner).ConsoleLocked = false;
                             ((MainWindow) Owner).tmrLoginTimeout.Start();
                             IsTimeoutLogin = false;
-                            this.Close();
+                            Close();
                         } else {
                             MainWindow MWindow = new MainWindow();
                             MWindow.Show();
-                            this.Hide();
+                            Hide();
                         }
                     } else {
                         MessageBox.Show("Not Allowed", "Forestual 2", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -59,7 +59,7 @@ namespace Forestual2ServerCS
             if (!Storage.Configuration.Helper.GetConfig().ConsoleRequiresAuthentification) {
                 MainWindow MWindow = new MainWindow();
                 MWindow.Show();
-                this.Hide();
+                Hide();
             }
         }
 
@@ -72,7 +72,7 @@ namespace Forestual2ServerCS
 
         public void ShowTimeoutDialog(Form owner) {
             IsTimeoutLogin = true;
-            this.ShowDialog(owner);
+            ShowDialog(owner);
         }
     }
 }

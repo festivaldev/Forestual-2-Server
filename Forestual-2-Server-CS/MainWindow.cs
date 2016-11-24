@@ -1,7 +1,10 @@
 ﻿using System;
 using System.Drawing;
 using System.Windows.Forms;
+using Forestual2CoreCS;
+using Forestual2CoreCS.Management;
 using Forestual2ServerCS.Internal;
+using Forestual2ServerCS.Management;
 
 namespace Forestual2ServerCS
 {
@@ -11,7 +14,7 @@ namespace Forestual2ServerCS
         private delegate void DChangeColor(Color color);
         private delegate void DSetServerAddress(string address);
 
-        private Forestual2ServerCS.Internal.Server Server;
+        private Server Server;
 
         public bool ConsoleLocked { get; set; }
         private bool ServerIsRunning;
@@ -20,12 +23,26 @@ namespace Forestual2ServerCS
 
         public MainWindow() {
             InitializeComponent();
-            this.Load += MainWindow_Load;
-            this.Closing += MainWindow_Closing;
+            Load += MainWindow_Load;
+            Closing += MainWindow_Closing;
             btnStartServer.Click += BtnStartServer_Click;
+            tbxInput .KeyDown += (sender, e) => {
+                if (e.KeyCode == Keys.Enter) {
+                    btnSend_Click(btnSend, new EventArgs());
+                }
+            };
+            btnSend.Click += btnSend_Click;
         }
 
-        private void MainWindow_Load(object sender, System.EventArgs e) {
+        private void btnSend_Click(object sender, EventArgs e) {
+            // Extension Management
+            ListenerManager.InvokeEvent(Event.ConsoleInputReceived, tbxInput.Text);
+            //End
+
+            tbxInput.Clear();
+        }
+
+        private void MainWindow_Load(object sender, EventArgs e) {
             // Start TimeoutTimer
         }
 
@@ -45,6 +62,7 @@ namespace Forestual2ServerCS
 
         private bool StartServer() {
             Server = new Server();
+            ServerManagement.RegisterServer(Server);
             Server.Connected += Connected;
             Server.ConsoleColorChanged += ConsoleColorChanged;
             Server.ConsoleMessageReceived += ConsoleMessageReceived;
@@ -62,7 +80,7 @@ namespace Forestual2ServerCS
         private void ConsoleMessageReceived(string content, bool newLine = true) {
             if (newLine)
                 content += Environment.NewLine;
-            this.Invoke(new DAppendText(AppendText), content);
+            Invoke(new DAppendText(AppendText), content);
         }
 
         private void AppendText(string content) {
@@ -70,7 +88,7 @@ namespace Forestual2ServerCS
         }
 
         private void ConsoleColorChanged(Color color) {
-            this.Invoke(new DChangeColor(ChangeColor), color);
+            Invoke(new DChangeColor(ChangeColor), color);
         }
 
         private void ChangeColor(Color color) {
@@ -78,7 +96,7 @@ namespace Forestual2ServerCS
         }
 
         private void Connected(string address) {
-            this.Invoke(new DSetServerAddress(SetServerAddress), address);
+            Invoke(new DSetServerAddress(SetServerAddress), address);
         }
 
         private void SetServerAddress(string address) {
