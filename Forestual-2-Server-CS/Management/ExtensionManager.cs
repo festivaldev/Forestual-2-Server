@@ -20,7 +20,9 @@ namespace Forestual2ServerCS.Management
                     .Where(type => ExtensionType.IsAssignableFrom(type) && type.IsClass)
                     .ToArray();
                 foreach (var Type in AssemblyTypes) {
-                    Extensions.Add((IExtension) Activator.CreateInstance(Type));
+                    var Extension = (IExtension) Activator.CreateInstance(Type);
+                    Extension.Path = path;
+                    Extensions.Add(Extension);
                 }
             }
         }

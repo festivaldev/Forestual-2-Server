@@ -61,7 +61,7 @@ namespace Forestual2ServerCS.Internal
             foreach (var Extension in ExtensionManager.Extensions) {
                 PrintToConsole($"[{Extension.Name}] Loading Extension...", Color.DarkSlateGray);
                 Extension.OnEnable();
-                Extension.Listeners.ToList().ForEach(ListenerManager.RegisterListener);
+                Extension.ServerListeners.ToList().ForEach(ListenerManager.RegisterListener);
                 PrintToConsole($"[{Extension.Name}] Extension enabled. Version: {Extension.Version}", Color.LimeGreen);
             }
             foreach (var Extension in ExtensionManager.Extensions) {
@@ -168,6 +168,13 @@ namespace Forestual2ServerCS.Internal
                                     Connection.SetStreamContent(string.Join("|", F2CE.Action.SetFlags, JsonConvert.SerializeObject(Flags)));
                                     Forestual.MemberIds.Add(Account.Id);
                                     ChannelManager.SendChannelList();
+                                    
+                                    // Extension Management
+                                    var ExtensionPaths = new List<string>();
+                                    ExtensionManager.Extensions.FindAll(e => e.ClientInstance).ForEach(e => ExtensionPaths.Add(e.Path));
+                                    ExtensionPaths.ForEach(e => Connection.SetStreamContent(string.Join("|", F2CE.Action.ExtensionTransport.ToString(), JsonConvert.SerializeObject(File.ReadAllBytes(e)))));
+                                    //End
+
                                     var Message = new Forestual2CoreCS.Message {
                                         Time = DateTime.Now.ToShortTimeString(),
                                         Type = F2CE.MessageType.Center,
@@ -301,6 +308,9 @@ namespace Forestual2ServerCS.Internal
                             Punishment.Id = PunishmentManager.GetRandomIdentifier(6);
                             PunishmentManager.CreateRecord(Punishment);
                             break;
+                        case F2CE.Action.Extension:
+                            ListenerManager.InvokeSpecialEvent(JsonConvert.DeserializeObject<EventArguments>(Contents[1]));
+                            break;
                         }
                     } catch {
                         // Syntax Error in Command
@@ -392,7 +402,9 @@ namespace Forestual2ServerCS.Internal
             ListenerManager.InvokeEvent(e, args);
         }
 
-        public void InvokeEvent(EventArguments e) { }
+        public void InvokeEvent(EventArguments e) {
+            ListenerManager.InvokeSpecialEvent(e);
+        }
 
         public string Serialize(object content, bool indented) {
             if(indented)
