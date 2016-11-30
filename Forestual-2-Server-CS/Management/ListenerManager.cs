@@ -15,5 +15,9 @@ namespace Forestual2ServerCS.Management
         public static void InvokeEvent(Event e, params object[] args) {
             Listeners.FindAll(l => l.Event == e).ForEach(l => l.Delegate.DynamicInvoke(args));
         }
+
+        public static void InvokeSpecialEvent(EventArguments e) {
+            Listeners.FindAll(l => l.Event == Event.Dynamic).ForEach(l => l.Delegate.DynamicInvoke(e));
+        }
     }
 }

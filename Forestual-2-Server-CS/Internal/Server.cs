@@ -9,7 +9,6 @@ using System.Security.Cryptography;
 using System.Threading;
 using System.Windows.Forms;
 using Forestual2CoreCS;
-using Forestual2CoreCS.Extension;
 using Forestual2CoreCS.Management;
 using Forestual2ServerCS.Management;
 using F2CE = Forestual2CoreCS.Enumerations;
@@ -22,10 +21,12 @@ namespace Forestual2ServerCS.Internal
         public delegate void DConsoleMessageReceivedHandler(string content, bool newLine = true);
         public delegate void DConsoleColorChangedHandler(Color color);
         public delegate void DConnectedHandler(string address);
+        public delegate void DDisplayFormHandler(Form form);
 
         public event DConsoleMessageReceivedHandler ConsoleMessageReceived;
         public event DConsoleColorChangedHandler ConsoleColorChanged;
         public event DConnectedHandler Connected;
+        public event DDisplayFormHandler DisplayFormEvent;
 
         public static Storage.Database.Values Database = Storage.Database.Helper.GetDatabase();
         public static Storage.Configuration.Values Config = Storage.Configuration.Helper.GetConfig();
@@ -48,8 +49,9 @@ namespace Forestual2ServerCS.Internal
         private Thread WaitingThread;
         private bool ExitThreadOnPurpose;
 
-        public bool Start() {
+        private bool CancelMessageHandling;
 
+        public bool Start() {
             // Extension Management
             ExtensionManager.Extensions.Clear();
             ListenerManager.Listeners.Clear();
@@ -57,8 +59,13 @@ namespace Forestual2ServerCS.Internal
                 ExtensionManager.LoadExtension(File);
             }
             foreach (var Extension in ExtensionManager.Extensions) {
+                PrintToConsole($"[{Extension.Name}] Loading Extension...", Color.DarkSlateGray);
                 Extension.OnEnable();
-                Extension.Listeners.ToList().ForEach(ListenerManager.RegisterListener);
+                Extension.ServerListeners.ToList().ForEach(ListenerManager.RegisterListener);
+                PrintToConsole($"[{Extension.Name}] Extension enabled. Version: {Extension.Version}", Color.LimeGreen);
+            }
+            foreach (var Extension in ExtensionManager.Extensions) {
+                Extension.OnRun();
             }
             // End
 
@@ -100,11 +107,11 @@ namespace Forestual2ServerCS.Internal
 
         public void Stop() {
             try {
-
                 // Extension Management
                 ListenerManager.InvokeEvent(Event.ServerStopped, null);
                 foreach (var Extension in ExtensionManager.Extensions) {
                     Extension.OnDisable();
+                    PrintToConsole($"[{Extension.Name}] Extension disabled.", Color.Red);
                 }
                 // End
 
@@ -140,6 +147,9 @@ namespace Forestual2ServerCS.Internal
                         var AuthData = Connection.GetStreamContent().Split('|');
                         if (Storage.Database.Helper.AccountExists(AuthData[0])) {
                             var Account = Storage.Database.Helper.GetAccount(AuthData[0]);
+                            if (Connections.Any(c => c.Owner.Id == AuthData[0])) {
+                                continue;
+                            }
                             if (Account.Password == AuthData[1]) {
                                 var PunishmentId = PunishmentManager.CheckForRecords(Account.Id, F2CE.PunishmentType.Bann, F2CE.PunishmentType.BannTemporarily);
                                 if (PunishmentId != "-1") {
@@ -158,6 +168,13 @@ namespace Forestual2ServerCS.Internal
                                     Connection.SetStreamContent(string.Join("|", F2CE.Action.SetFlags, JsonConvert.SerializeObject(Flags)));
                                     Forestual.MemberIds.Add(Account.Id);
                                     ChannelManager.SendChannelList();
+                                    
+                                    // Extension Management
+                                    var ExtensionPaths = new List<string>();
+                                    ExtensionManager.Extensions.FindAll(e => e.ClientInstance).ForEach(e => ExtensionPaths.Add(e.Path));
+                                    ExtensionPaths.ForEach(e => Connection.SetStreamContent(string.Join("|", F2CE.Action.ExtensionTransport.ToString(), JsonConvert.SerializeObject(File.ReadAllBytes(e)))));
+                                    //End
+
                                     var Message = new Forestual2CoreCS.Message {
                                         Time = DateTime.Now.ToShortTimeString(),
                                         Type = F2CE.MessageType.Center,
@@ -172,7 +189,6 @@ namespace Forestual2ServerCS.Internal
                                     // Extension Management
                                     ListenerManager.InvokeEvent(Event.ClientConnected, null);
                                     //End
-
                                 }
                             } else {
                                 Connection.SetStreamContent(string.Join("|", F2CE.Action.LoginResult, "authentificationFailed"));
@@ -216,6 +232,10 @@ namespace Forestual2ServerCS.Internal
 
                             // Extension Management
                             ListenerManager.InvokeEvent(Event.ClientMessageReceived, Connection.Owner.Id, Contents[1]);
+                            if (CancelMessageHandling) {
+                                CancelMessageHandling = false;
+                                continue;
+                            }
                             //End
 
                             if (Contents[1].StartsWith("/")) {
@@ -288,12 +308,14 @@ namespace Forestual2ServerCS.Internal
                             Punishment.Id = PunishmentManager.GetRandomIdentifier(6);
                             PunishmentManager.CreateRecord(Punishment);
                             break;
+                        case F2CE.Action.Extension:
+                            ListenerManager.InvokeSpecialEvent(JsonConvert.DeserializeObject<EventArguments>(Contents[1]));
+                            break;
                         }
                     } catch {
                         // Syntax Error in Command
                     }
                 } catch {
-
                     // Extension Management
                     ListenerManager.InvokeEvent(Event.ClientDisconnected, null);
                     //End
@@ -334,6 +356,10 @@ namespace Forestual2ServerCS.Internal
             return $"[{Rank.Name}] {Account.Name}";
         }
 
+        public void SendTo(string id, string content) {
+            Connections.Find(c => c.Owner.Id == id).SetStreamContent(content);
+        }
+
         public void SendToAll(string content) {
             Connections.ForEach(c => c.SetStreamContent(content));
         }
@@ -360,9 +386,51 @@ namespace Forestual2ServerCS.Internal
             PunishmentManager.CreateRecord(punishment);
         }
 
+        public Account GetAccountById(string id) {
+            return GetAccountsWithoutPassword().Find(a => a.Id == id);
+        }
+
+        public Rank GetRankById(string id) {
+            return Database.Ranks.Find(r => r.Id == id);
+        }
+
+        public Punishment GetPunishmentById(string id) {
+            return PunishmentManager.GetRecord(id);
+        }
+
+        public void InvokeInternalEvent(Event e, params object[] args) {
+            ListenerManager.InvokeEvent(e, args);
+        }
+
+        public void InvokeEvent(EventArguments e) {
+            ListenerManager.InvokeSpecialEvent(e);
+        }
+
+        public string Serialize(object content, bool indented) {
+            if(indented)
+                return JsonConvert.SerializeObject(content, Formatting.Indented, new JsonSerializerSettings {
+                    ReferenceLoopHandling = ReferenceLoopHandling.Ignore
+                });
+            return JsonConvert.SerializeObject(content, Formatting.None, new JsonSerializerSettings {
+                ReferenceLoopHandling = ReferenceLoopHandling.Ignore
+            });
+        }
+
+        public dynamic Deserialize(string content) {
+            return JsonConvert.DeserializeObject(content);
+        }
+
+        public void CancelInternalMessageHandling() {
+            CancelMessageHandling = true;
+        }
+
+        public void DisplayForm(Form form) {
+            DisplayFormEvent?.Invoke(form);
+        }
+
         private List<Account> GetAccountsWithoutPassword() {
             var Accounts = new List<Account>();
-            Database.Accounts.ForEach(a => Accounts.Add(new Account() { Deposit = a.Deposit, Flags = a.Flags, Id = a.Id, Name = a.Name, Online = a.Online, Password = Database.Ranks.Find(r => r.Id == a.RankId).Color, RankId = a.RankId }));
+            Database.Accounts.ForEach(a => Accounts.Add(new Account() {Deposit = a.Deposit, Flags = a.Flags, Id = a.Id, Name = a.Name, Online = a.Online, Password = Database.Ranks.Find(r => r.Id == a.RankId).Color, RankId = a.RankId}));
             return Accounts;
         }
 

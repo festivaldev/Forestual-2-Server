@@ -11,8 +11,12 @@ namespace Forestual2ServerCS
     public partial class MainWindow : Form
     {
         private delegate void DAppendText(string content);
+
         private delegate void DChangeColor(Color color);
+
         private delegate void DSetServerAddress(string address);
+
+        private delegate void DDisplayForm(Form form);
 
         private Server Server;
 
@@ -26,7 +30,7 @@ namespace Forestual2ServerCS
             Load += MainWindow_Load;
             Closing += MainWindow_Closing;
             btnStartServer.Click += BtnStartServer_Click;
-            tbxInput .KeyDown += (sender, e) => {
+            tbxInput.KeyDown += (sender, e) => {
                 if (e.KeyCode == Keys.Enter) {
                     btnSend_Click(btnSend, new EventArgs());
                 }
@@ -66,6 +70,7 @@ namespace Forestual2ServerCS
             Server.Connected += Connected;
             Server.ConsoleColorChanged += ConsoleColorChanged;
             Server.ConsoleMessageReceived += ConsoleMessageReceived;
+            Server.DisplayFormEvent += DisplayFormEvent;
             ServerIsRunning = Server.Start();
             return ServerIsRunning;
         }
@@ -101,6 +106,14 @@ namespace Forestual2ServerCS
 
         private void SetServerAddress(string address) {
             lblServerAddress.Text = address;
+        }
+
+        private void DisplayFormEvent(Form form) {
+            Invoke(new DDisplayForm(DisplayForm), form);
+        }
+
+        private void DisplayForm(Form form) {
+            form.Show();
         }
     }
 }
