@@ -11,8 +11,10 @@ using System.Windows.Forms;
 using Forestual2CoreCS;
 using Forestual2CoreCS.Management;
 using Forestual2ServerCS.Management;
-using F2CE = Forestual2CoreCS.Enumerations;
+using Forestual2ServerCS.Storage.Database;
 using Newtonsoft.Json;
+using F2CE = Forestual2CoreCS.Enumerations;
+using Message = Forestual2CoreCS.Message;
 
 namespace Forestual2ServerCS.Internal
 {
@@ -28,7 +30,7 @@ namespace Forestual2ServerCS.Internal
         public event DConnectedHandler Connected;
         public event DDisplayFormHandler DisplayFormEvent;
 
-        public static Storage.Database.Values Database = Storage.Database.Helper.GetDatabase();
+        public static Values Database = Helper.GetDatabase();
         public static Storage.Configuration.Values Config = Storage.Configuration.Helper.GetConfig();
         public static Storage.Localization.Values Lcl;
 
@@ -50,6 +52,7 @@ namespace Forestual2ServerCS.Internal
         private bool ExitThreadOnPurpose;
 
         private bool CancelMessageHandling;
+        private Queue<Message> MessageQueue = new Queue<Message>();
 
         public bool Start() {
             // Extension Management
@@ -60,12 +63,21 @@ namespace Forestual2ServerCS.Internal
             }
             foreach (var Extension in ExtensionManager.Extensions) {
                 PrintToConsole($"[{Extension.Name}] Loading Extension...", Color.DarkSlateGray);
-                Extension.OnEnable();
-                Extension.ServerListeners.ToList().ForEach(ListenerManager.RegisterListener);
-                PrintToConsole($"[{Extension.Name}] Extension enabled. Version: {Extension.Version}", Color.LimeGreen);
+                try {
+                    Extension.OnEnable();
+                    Extension.ServerListeners.ToList().ForEach(ListenerManager.RegisterListener);
+                    PrintToConsole($"[{Extension.Name}] Extension enabled. Version: {Extension.Version}", Color.LimeGreen);
+                } catch {
+                    PrintToConsole($"[{Extension.Name}] Loading the extension failed.", Color.Red);
+                }
             }
             foreach (var Extension in ExtensionManager.Extensions) {
                 Extension.OnRun();
+                if (Extension.StorageNeeded) {
+                    if (!Directory.Exists(Path.Combine(Application.StartupPath, "Extensions", Extension.Namespace)))
+                        Directory.CreateDirectory(Path.Combine(Application.StartupPath, "Extensions", Extension.Namespace));
+                    Extension.StoragePath = Path.Combine(Application.StartupPath, "Extensions", Extension.Namespace);
+                }
             }
             // End
 
@@ -111,7 +123,7 @@ namespace Forestual2ServerCS.Internal
                 ListenerManager.InvokeEvent(Event.ServerStopped, null);
                 foreach (var Extension in ExtensionManager.Extensions) {
                     Extension.OnDisable();
-                    PrintToConsole($"[{Extension.Name}] Extension disabled.", Color.Red);
+                    PrintToConsole($"[{Extension.Name}] Extension disabled.", Color.DarkSlateGray);
                 }
                 // End
 
@@ -145,8 +157,8 @@ namespace Forestual2ServerCS.Internal
                         Connection.AesData = AesData;
                         Connection.HmacKey = Convert.FromBase64String(SessionData[2]);
                         var AuthData = Connection.GetStreamContent().Split('|');
-                        if (Storage.Database.Helper.AccountExists(AuthData[0])) {
-                            var Account = Storage.Database.Helper.GetAccount(AuthData[0]);
+                        if (Helper.AccountExists(AuthData[0])) {
+                            var Account = Helper.GetAccount(AuthData[0]);
                             if (Connections.Any(c => c.Owner.Id == AuthData[0])) {
                                 continue;
                             }
@@ -168,14 +180,14 @@ namespace Forestual2ServerCS.Internal
                                     Connection.SetStreamContent(string.Join("|", F2CE.Action.SetFlags, JsonConvert.SerializeObject(Flags)));
                                     Forestual.MemberIds.Add(Account.Id);
                                     ChannelManager.SendChannelList();
-                                    
+
                                     // Extension Management
                                     var ExtensionPaths = new List<string>();
                                     ExtensionManager.Extensions.FindAll(e => e.ClientInstance).ForEach(e => ExtensionPaths.Add(e.Path));
                                     ExtensionPaths.ForEach(e => Connection.SetStreamContent(string.Join("|", F2CE.Action.ExtensionTransport.ToString(), JsonConvert.SerializeObject(File.ReadAllBytes(e)))));
                                     //End
 
-                                    var Message = new Forestual2CoreCS.Message {
+                                    var Message = new Message {
                                         Time = DateTime.Now.ToShortTimeString(),
                                         Type = F2CE.MessageType.Center,
                                         Content = $"{Connection.Owner.Name} (@{Connection.Owner.Id}) hat den Chat betreten."
@@ -184,10 +196,10 @@ namespace Forestual2ServerCS.Internal
                                     SendMessageToAll(Message);
                                     Connection.Owner.Online = true;
                                     SendToAll(string.Join("|", F2CE.Action.SetAccountList, JsonConvert.SerializeObject(GetAccountsWithoutPassword())));
-                                    PrintToConsole($"{Connection.Owner.Name} (@{Connection.Owner.Id}) joined.", ColorTranslator.FromHtml("#07D159"));
+                                    PrintToConsole($"{Connection.Owner.Name} (@{Connection.Owner.Id}) joined. <{((IPEndPoint) FClient.Client.RemoteEndPoint).Address}>", ColorTranslator.FromHtml("#07D159"));
 
                                     // Extension Management
-                                    ListenerManager.InvokeEvent(Event.ClientConnected, null);
+                                    ListenerManager.InvokeEvent(Event.ClientConnected, Connection.Owner.Id);
                                     //End
                                 }
                             } else {
@@ -213,7 +225,7 @@ namespace Forestual2ServerCS.Internal
                     var PunishmentId = PunishmentManager.CheckForRecords(Connection.Owner.Id, F2CE.PunishmentType.Mute);
                     if (PunishmentId != "-1") {
                         var RemainingTime = PunishmentManager.GetRecord(PunishmentId).EndDate.Subtract(DateTime.Now);
-                        var Message = new Forestual2CoreCS.Message {
+                        var Message = new Message {
                             Time = DateTime.Now.ToShortTimeString(),
                             Type = F2CE.MessageType.Center,
                             RankColor = "#FC3539",
@@ -245,8 +257,8 @@ namespace Forestual2ServerCS.Internal
                                     SendToChannel(Connection.Channel.Id, F2CE.Action.ClearConversation.ToString());
                                     break;
                                 case "vuohen":
-                                    var Account = CommandParts.Length >= 3 ? Storage.Database.Helper.GetAccount(CommandParts[2]) : null;
-                                    var MyAccount = Storage.Database.Helper.GetAccount(Connection.Owner.Id);
+                                    var Account = CommandParts.Length >= 3 ? Helper.GetAccount(CommandParts[2]) : null;
+                                    var MyAccount = Helper.GetAccount(Connection.Owner.Id);
                                     var Value = CommandParts.Length >= 4 ? int.Parse(CommandParts[3]) : 0;
                                     switch (CommandParts[1]) {
                                     case "add":
@@ -262,7 +274,7 @@ namespace Forestual2ServerCS.Internal
                                         break;
                                     case "send":
                                         if (MyAccount.Deposit < Value) {
-                                            var Message1 = new Forestual2CoreCS.Message() {
+                                            var Message1 = new Message {
                                                 Time = DateTime.Now.ToShortTimeString(),
                                                 Type = F2CE.MessageType.Center,
                                                 RankColor = "#FC3539",
@@ -275,7 +287,7 @@ namespace Forestual2ServerCS.Internal
                                         }
                                         break;
                                     case "balance":
-                                        var Message2 = new Forestual2CoreCS.Message() {
+                                        var Message2 = new Message {
                                             Time = DateTime.Now.ToShortTimeString(),
                                             Type = F2CE.MessageType.Center,
                                             RankColor = Config.ServerBroadcastColor,
@@ -284,12 +296,12 @@ namespace Forestual2ServerCS.Internal
                                         SendMessageTo(Connection.Owner.Id, Message2);
                                         break;
                                     }
-                                    Storage.Database.Helper.Save();
-                                    Database = Storage.Database.Helper.GetDatabase();
+                                    Helper.Save();
+                                    Database = Helper.GetDatabase();
                                     break;
                                 }
                             } else {
-                                var Message3 = new Forestual2CoreCS.Message {
+                                var Message3 = new Message {
                                     SenderId = Connection.Owner.Id,
                                     SenderPrefix = ComposePrefix(Connection.Owner.Id),
                                     RankColor = Database.Ranks.Find(r => r.Id == Connection.Owner.RankId).Color,
@@ -309,9 +321,18 @@ namespace Forestual2ServerCS.Internal
                             PunishmentManager.CreateRecord(Punishment);
                             break;
                         case F2CE.Action.Extension:
-                            ListenerManager.InvokeSpecialEvent(JsonConvert.DeserializeObject<EventArguments>(Contents[1]));
+                            var EventArgs = JsonConvert.DeserializeObject<EventArguments>(Contents[1]);
+                            EventArgs.EndpointId = Connection.Owner.Id;
+                            ListenerManager.InvokeSpecialEvent(EventArgs);
                             break;
                         }
+
+                        // Message Dequeueing
+                        while (MessageQueue.Count > 0) {
+                            SendMessageToAll(MessageQueue.Dequeue());
+                        }
+                        // End
+
                     } catch {
                         // Syntax Error in Command
                     }
@@ -321,7 +342,7 @@ namespace Forestual2ServerCS.Internal
                     //End
 
                     Connections.Remove(Connection);
-                    var Message = new Forestual2CoreCS.Message {
+                    var Message = new Message {
                         Time = DateTime.Now.ToShortTimeString(),
                         Type = F2CE.MessageType.Center,
                         Content = $"{Connection.Owner.Name} disconnected."
@@ -368,15 +389,15 @@ namespace Forestual2ServerCS.Internal
             Connections.FindAll(c => c.Channel.Id == id).ForEach(c => c.SetStreamContent(content));
         }
 
-        public void SendMessageTo(string id, Forestual2CoreCS.Message message) {
+        public void SendMessageTo(string id, Message message) {
             Connections.Find(c => c.Owner.Id == id).SetStreamContent(string.Join("|", F2CE.Action.Plain, JsonConvert.SerializeObject(message)));
         }
 
-        public void SendMessageToAll(Forestual2CoreCS.Message message) {
+        public void SendMessageToAll(Message message) {
             Connections.ForEach(c => c.SetStreamContent(string.Join("|", F2CE.Action.Plain, JsonConvert.SerializeObject(message))));
         }
 
-        public void SendMessageToAllExceptTo(string accountId, Forestual2CoreCS.Message message, string channelId) {
+        public void SendMessageToAllExceptTo(string accountId, Message message, string channelId) {
             Connections.FindAll(c => c.Owner.Id != accountId && c.Channel.Id == channelId).ForEach(c => c.SetStreamContent(string.Join("|", F2CE.Action.Plain, JsonConvert.SerializeObject(message))));
         }
 
@@ -403,11 +424,12 @@ namespace Forestual2ServerCS.Internal
         }
 
         public void InvokeEvent(EventArguments e) {
+            e.EndpointId = "server";
             ListenerManager.InvokeSpecialEvent(e);
         }
 
         public string Serialize(object content, bool indented) {
-            if(indented)
+            if (indented)
                 return JsonConvert.SerializeObject(content, Formatting.Indented, new JsonSerializerSettings {
                     ReferenceLoopHandling = ReferenceLoopHandling.Ignore
                 });
@@ -428,9 +450,19 @@ namespace Forestual2ServerCS.Internal
             DisplayFormEvent?.Invoke(form);
         }
 
+        public List<string> GetAllConnectedIds() {
+            var Ids = new List<string>();
+            Connections.ForEach(c => Ids.Add(c.Owner.Id));
+            return Ids;
+        }
+
+        public void Enqueue(Message message) {
+            MessageQueue.Enqueue(message);
+        }
+
         private List<Account> GetAccountsWithoutPassword() {
             var Accounts = new List<Account>();
-            Database.Accounts.ForEach(a => Accounts.Add(new Account() {Deposit = a.Deposit, Flags = a.Flags, Id = a.Id, Name = a.Name, Online = a.Online, Password = Database.Ranks.Find(r => r.Id == a.RankId).Color, RankId = a.RankId}));
+            Database.Accounts.ForEach(a => Accounts.Add(new Account { Deposit = a.Deposit, Flags = a.Flags, Id = a.Id, Name = a.Name, Online = a.Online, Password = Database.Ranks.Find(r => r.Id == a.RankId).Color, RankId = a.RankId }));
             return Accounts;
         }
 
