@@ -36,7 +36,7 @@
             this.pnlStatus = new System.Windows.Forms.Panel();
             this.lblServerAddress = new System.Windows.Forms.Label();
             this.Panel6 = new System.Windows.Forms.Panel();
-            this.Panel2 = new System.Windows.Forms.Panel();
+            this.pnlAccounts = new System.Windows.Forms.Panel();
             this.tmrLoginTimeout = new System.Windows.Forms.Timer(this.components);
             this.Panel3 = new System.Windows.Forms.Panel();
             this.Panel5.SuspendLayout();
@@ -156,13 +156,14 @@
             this.Panel6.Size = new System.Drawing.Size(518, 447);
             this.Panel6.TabIndex = 4;
             // 
-            // Panel2
+            // pnlAccounts
             // 
-            this.Panel2.Dock = System.Windows.Forms.DockStyle.Left;
-            this.Panel2.Location = new System.Drawing.Point(0, 46);
-            this.Panel2.Name = "Panel2";
-            this.Panel2.Size = new System.Drawing.Size(350, 487);
-            this.Panel2.TabIndex = 9;
+            this.pnlAccounts.AutoScroll = true;
+            this.pnlAccounts.Dock = System.Windows.Forms.DockStyle.Left;
+            this.pnlAccounts.Location = new System.Drawing.Point(0, 46);
+            this.pnlAccounts.Name = "pnlAccounts";
+            this.pnlAccounts.Size = new System.Drawing.Size(350, 487);
+            this.pnlAccounts.TabIndex = 9;
             // 
             // Panel3
             // 
@@ -181,7 +182,7 @@
             this.BackColor = System.Drawing.Color.White;
             this.ClientSize = new System.Drawing.Size(868, 562);
             this.Controls.Add(this.Panel3);
-            this.Controls.Add(this.Panel2);
+            this.Controls.Add(this.pnlAccounts);
             this.Controls.Add(this.Panel1);
             this.Controls.Add(this.pnlStatus);
             this.Font = new System.Drawing.Font("Segoe UI", 9F);
@@ -211,7 +212,7 @@
         internal System.Windows.Forms.Panel pnlStatus;
         internal System.Windows.Forms.Label lblServerAddress;
         internal System.Windows.Forms.Panel Panel6;
-        internal System.Windows.Forms.Panel Panel2;
+        internal System.Windows.Forms.Panel pnlAccounts;
         internal System.Windows.Forms.Timer tmrLoginTimeout;
         internal System.Windows.Forms.Panel Panel3;
     }

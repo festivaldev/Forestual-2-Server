@@ -22,6 +22,9 @@ namespace Forestual2ServerCS.Management
                 foreach (var Type in AssemblyTypes) {
                     var Extension = (IExtension) Activator.CreateInstance(Type);
                     Extension.Path = path;
+                    if (Extensions.Any(e => e.Namespace == Extension.Namespace)) {
+                        continue;
+                    }
                     Extensions.Add(Extension);
                 }
             }

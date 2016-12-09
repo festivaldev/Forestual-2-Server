@@ -24,11 +24,13 @@ namespace Forestual2ServerCS.Internal
         public delegate void DConsoleColorChangedHandler(Color color);
         public delegate void DConnectedHandler(string address);
         public delegate void DDisplayFormHandler(Form form);
+        public delegate void DRefreshAccounts();
 
         public event DConsoleMessageReceivedHandler ConsoleMessageReceived;
         public event DConsoleColorChangedHandler ConsoleColorChanged;
         public event DConnectedHandler Connected;
         public event DDisplayFormHandler DisplayFormEvent;
+        public event DRefreshAccounts RefreshAccounts;
 
         public static Values Database = Helper.GetDatabase();
         public static Storage.Configuration.Values Config = Storage.Configuration.Helper.GetConfig();
@@ -112,7 +114,7 @@ namespace Forestual2ServerCS.Internal
 
             // Extension Management
             ListenerManager.InvokeEvent(Event.ServerStarted, null);
-            //End
+            // End
 
             return true;
         }
@@ -185,7 +187,7 @@ namespace Forestual2ServerCS.Internal
                                     var ExtensionPaths = new List<string>();
                                     ExtensionManager.Extensions.FindAll(e => e.ClientInstance).ForEach(e => ExtensionPaths.Add(e.Path));
                                     ExtensionPaths.ForEach(e => Connection.SetStreamContent(string.Join("|", F2CE.Action.ExtensionTransport.ToString(), JsonConvert.SerializeObject(File.ReadAllBytes(e)))));
-                                    //End
+                                    // End
 
                                     var Message = new Message {
                                         Time = DateTime.Now.ToShortTimeString(),
@@ -195,12 +197,15 @@ namespace Forestual2ServerCS.Internal
                                     };
                                     SendMessageToAll(Message);
                                     Connection.Owner.Online = true;
+                                    Database.Accounts.Find(a => a.Id == Connection.Owner.Id).Online = true;
                                     SendToAll(string.Join("|", F2CE.Action.SetAccountList, JsonConvert.SerializeObject(GetAccountsWithoutPassword())));
                                     PrintToConsole($"{Connection.Owner.Name} (@{Connection.Owner.Id}) joined. <{((IPEndPoint) FClient.Client.RemoteEndPoint).Address}>", ColorTranslator.FromHtml("#07D159"));
 
+                                    RefreshAccounts?.Invoke();
+
                                     // Extension Management
                                     ListenerManager.InvokeEvent(Event.ClientConnected, Connection.Owner.Id);
-                                    //End
+                                    // End
                                 }
                             } else {
                                 Connection.SetStreamContent(string.Join("|", F2CE.Action.LoginResult, "authentificationFailed"));
@@ -248,7 +253,7 @@ namespace Forestual2ServerCS.Internal
                                 CancelMessageHandling = false;
                                 continue;
                             }
-                            //End
+                            // End
 
                             if (Contents[1].StartsWith("/")) {
                                 var CommandParts = Contents[1].Remove(0, 1).Split(' ');
@@ -339,7 +344,7 @@ namespace Forestual2ServerCS.Internal
                 } catch {
                     // Extension Management
                     ListenerManager.InvokeEvent(Event.ClientDisconnected, null);
-                    //End
+                    // End
 
                     Connections.Remove(Connection);
                     var Message = new Message {
@@ -357,8 +362,12 @@ namespace Forestual2ServerCS.Internal
                         ChannelManager.SendChannelList();
                     }
                     Connection.Owner.Online = false;
+                    Database.Accounts.Find(a => a.Id == Connection.Owner.Id).Online = false;
                     SendToAll(string.Join("|", F2CE.Action.SetAccountList, JsonConvert.SerializeObject(GetAccountsWithoutPassword())));
                     PrintToConsole($"{Connection.Owner.Name} (@{Connection.Owner.Id}) disconnected.", ColorTranslator.FromHtml("#FC3539"));
+
+                    RefreshAccounts?.Invoke();
+
                     Connection.Dispose();
                     return;
                 }
