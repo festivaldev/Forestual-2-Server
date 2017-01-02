@@ -87,6 +87,7 @@
     <Compile Include="Storage\Database\Values.cs" />
     <Compile Include="Storage\Localization\Helper.cs" />
     <Compile Include="Storage\Localization\Values.cs" />
+    <Compile Include="Version.cs" />
     <EmbeddedResource Include="LoginWindow.resx">
       <DependentUpon>LoginWindow.cs</DependentUpon>
     </EmbeddedResource>

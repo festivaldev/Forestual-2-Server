@@ -35,8 +35,7 @@ namespace Forestual2ServerCS.Storage.Configuration
                 MetaGuestsCanChooseName = false,
                 MetaAcceptsRegistration = false,
                 MetaRequiresInvitation = false,
-                MetaAccountsInstantlyActivated = false,
-                MetaRequiredClientVersion = "0"
+                MetaAccountsInstantlyActivated = false
             };
             File.WriteAllText(Application.StartupPath + "\\config.json", JsonConvert.SerializeObject(Config, Formatting.Indented));
         }

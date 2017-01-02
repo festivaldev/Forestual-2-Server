@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using Forestual2CoreCS.Extension;
+using F2Core.Extension;
 
 namespace Forestual2ServerCS.Management
 {

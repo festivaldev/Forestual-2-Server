@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
-using Forestual2CoreCS;
-using Forestual2CoreCS.Extension;
-using Forestual2CoreCS.Management;
+using F2Core;
+using F2Core.Extension;
+using F2Core.Management;
 
 namespace Forestual2ServerCS.Management
 {
@@ -19,7 +19,7 @@ namespace Forestual2ServerCS.Management
             try {
                 Listeners.FindAll(l => l.Event == e).ForEach(l => l.Delegate.DynamicInvoke(args));
             } catch (Exception Ex) {
-                ServerManagement.Server.PrintToConsole($"Exception:  {Ex.Message}\nStacktrace: {Ex.StackTrace}\nSource:{Ex.Source}", ColorTranslator.FromHtml("#FC3539"));
+                ServerManagement.Server.PrintToConsole($"Exception:  {Ex.Message}\nStacktrace: {Ex.StackTrace}", ColorTranslator.FromHtml("#FC3539"));
             }
         }
 
@@ -27,7 +27,7 @@ namespace Forestual2ServerCS.Management
             try {
                 Listeners.FindAll(l => l.Event == Event.Dynamic).ForEach(l => l.Delegate.DynamicInvoke(e));
             } catch (Exception Ex) {
-                ServerManagement.Server.PrintToConsole($"Exception:  {Ex.Message}\nStacktrace: {Ex.StackTrace}\nSource:{Ex.Source}",ColorTranslator.FromHtml("#FC3539"));
+                ServerManagement.Server.PrintToConsole($"Exception:  {Ex.Message}\nStacktrace: {Ex.StackTrace}",ColorTranslator.FromHtml("#FC3539"));
             }
         }
     }

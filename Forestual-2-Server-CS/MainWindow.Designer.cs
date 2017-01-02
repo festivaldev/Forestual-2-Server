@@ -39,6 +39,7 @@
             this.pnlAccounts = new System.Windows.Forms.Panel();
             this.tmrLoginTimeout = new System.Windows.Forms.Timer(this.components);
             this.Panel3 = new System.Windows.Forms.Panel();
+            this.lblAssembly = new System.Windows.Forms.Label();
             this.Panel5.SuspendLayout();
             this.Panel1.SuspendLayout();
             this.pnlStatus.SuspendLayout();
@@ -127,6 +128,7 @@
             // pnlStatus
             // 
             this.pnlStatus.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(252)))), ((int)(((byte)(53)))), ((int)(((byte)(57)))));
+            this.pnlStatus.Controls.Add(this.lblAssembly);
             this.pnlStatus.Controls.Add(this.lblServerAddress);
             this.pnlStatus.Controls.Add(this.lblStatus);
             this.pnlStatus.Dock = System.Windows.Forms.DockStyle.Bottom;
@@ -175,6 +177,19 @@
             this.Panel3.Size = new System.Drawing.Size(518, 487);
             this.Panel3.TabIndex = 10;
             // 
+            // lblAssembly
+            // 
+            this.lblAssembly.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.lblAssembly.Font = new System.Drawing.Font("Segoe UI Semibold", 9F);
+            this.lblAssembly.ForeColor = System.Drawing.Color.White;
+            this.lblAssembly.Location = new System.Drawing.Point(111, 0);
+            this.lblAssembly.Name = "lblAssembly";
+            this.lblAssembly.Padding = new System.Windows.Forms.Padding(0, 0, 5, 0);
+            this.lblAssembly.Size = new System.Drawing.Size(607, 29);
+            this.lblAssembly.TabIndex = 2;
+            this.lblAssembly.Text = "F2S Version 2.0.4rc 17w1 (7FC1FBD)";
+            this.lblAssembly.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            // 
             // MainWindow
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
@@ -215,6 +230,7 @@
         internal System.Windows.Forms.Panel pnlAccounts;
         internal System.Windows.Forms.Timer tmrLoginTimeout;
         internal System.Windows.Forms.Panel Panel3;
+        internal System.Windows.Forms.Label lblAssembly;
     }
 }
 
