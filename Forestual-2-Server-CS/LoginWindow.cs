@@ -1,6 +1,5 @@
 ﻿using System.Windows.Forms;
-using Forestual2CoreCS;
-using F2CE = Forestual2CoreCS.Enumerations;
+using F2Core;
 
 namespace Forestual2ServerCS
 {
@@ -23,7 +22,7 @@ namespace Forestual2ServerCS
             if (Storage.Database.Helper.AccountExists(Database, tbxAccountId.Text)) {
                 var Account = Storage.Database.Helper.GetAccount(Database, tbxAccountId.Text);
                 if (Account.Password == Cryptography.ComputeHash(tbxPassword.Text)) {
-                    if (Storage.Database.Helper.AccountHasFlags(Database, Account, F2CE.Flag.CanControlServer)) {
+                    if (Storage.Database.Helper.AccountHasFlags(Database, Account, Enumerations.Flag.CanControlServer)) {
                         if (IsTimeoutLogin) {
                             ((MainWindow) Owner).ConsoleLocked = false;
                             ((MainWindow) Owner).tmrLoginTimeout.Start();

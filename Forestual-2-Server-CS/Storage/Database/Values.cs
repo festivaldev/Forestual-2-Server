@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-using Forestual2CoreCS;
+using F2Core;
 
 namespace Forestual2ServerCS.Storage.Database
 {

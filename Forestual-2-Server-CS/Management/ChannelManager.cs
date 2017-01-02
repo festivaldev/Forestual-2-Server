@@ -1,5 +1,4 @@
-﻿using Forestual2CoreCS;
-using F2CE = Forestual2CoreCS.Enumerations;
+﻿using F2Core;
 using Forestual2ServerCS.Internal;
 using Newtonsoft.Json;
 
@@ -14,7 +13,7 @@ namespace Forestual2ServerCS.Management
         }
 
         public static void SendChannelList() {
-            Server.Connections.ForEach(c => c.SetStreamContent(string.Join("|", F2CE.Action.SetChannelList, JsonConvert.SerializeObject(Server.Channels))));
+            Server.Connections.ForEach(c => c.SetStreamContent(string.Join("|", Enumerations.Action.SetChannelList, JsonConvert.SerializeObject(Server.Channels))));
         }
 
         public static void MoveAccountTo(Account account, Channel channel) {
@@ -22,7 +21,7 @@ namespace Forestual2ServerCS.Management
             Connection.Channel.MemberIds.Remove(account.Id);
             channel.MemberIds.Add(account.Id);
             Connection.Channel = channel;
-            Connection.SetStreamContent(string.Join("|", F2CE.Action.SetChannel, JsonConvert.SerializeObject(channel)));
+            Connection.SetStreamContent(string.Join("|", Enumerations.Action.SetChannel, JsonConvert.SerializeObject(channel)));
             SendChannelList();
             // Inform old and new Channel
         }

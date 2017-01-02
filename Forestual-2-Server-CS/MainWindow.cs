@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
-using Forestual2CoreCS;
-using Forestual2CoreCS.Management;
+using F2Core;
+using F2Core.Management;
 using Forestual2ServerCS.Internal;
 using Forestual2ServerCS.Management;
 using Microsoft.WindowsAPICodePack.Taskbar;
@@ -14,14 +14,17 @@ namespace Forestual2ServerCS
     public partial class MainWindow : Form
     {
         private delegate void DAppendText(string content);
-
         private delegate void DChangeColor(Color color);
-
         private delegate void DSetServerAddress(string address);
-
         private delegate void DDisplayForm(Form form);
-
         private delegate void DRefreshAccounts();
+
+        public enum AccountState
+        {
+            Offline,
+            Online,
+            Banned
+        }
 
         private Server Server;
 
@@ -43,6 +46,7 @@ namespace Forestual2ServerCS
                 }
             };
             btnSend.Click += btnSend_Click;
+            lblAssembly.Text = $"F2S Version {new Version().ToMediumString()} / F2C Version {new F2Core.Compatibility.Version().ToMediumString()}";
         }
 
         private void btnSend_Click(object sender, EventArgs e) {
@@ -103,6 +107,7 @@ namespace Forestual2ServerCS
 
         private void AppendText(string content) {
             rtbConsole.AppendText(content);
+            rtbConsole.ScrollToCaret();
         }
 
         private void ConsoleColorChanged(Color color) {
@@ -138,14 +143,17 @@ namespace Forestual2ServerCS
             switch (color) {
             case TaskbarProgressBarState.Normal:
                 pnlStatus.BackColor = ColorTranslator.FromHtml("#07D159");
+                lblStatus.ForeColor = lblAssembly.ForeColor = lblServerAddress.ForeColor = Color.Black;
                 lblStatus.Text = "Running";
                 break;
             case TaskbarProgressBarState.Paused:
                 pnlStatus.BackColor = ColorTranslator.FromHtml("#FF6600");
+                lblStatus.ForeColor = lblAssembly.ForeColor = lblServerAddress.ForeColor = Color.White;
                 lblStatus.Text = "Warning";
                 break;
             case TaskbarProgressBarState.Error:
                 pnlStatus.BackColor = ColorTranslator.FromHtml("#FC3539");
+                lblStatus.ForeColor = lblAssembly.ForeColor = lblServerAddress.ForeColor = Color.White;
                 lblStatus.Text = "Stopped";
                 break;
             }
@@ -208,19 +216,40 @@ namespace Forestual2ServerCS
             var Status = new DoubleBufferedPanel();
             Status.Size = new Size(20, 20);
             Status.Location = new Point(Panel.Width - 35, 15);
-            Status.State = online;
+            var Banned = PunishmentManager.CheckForRecords(accountName, Enumerations.PunishmentType.Bann, Enumerations.PunishmentType.BannTemporarily) != "-1";
+            if (Banned) {
+                Status.State = AccountState.Banned;
+            } else {
+                Status.State = online ? AccountState.Online : AccountState.Offline;
+            }
             Status.Paint += StatusElementPaint;
             Panel.Controls.Add(Status);
+            if (online && Server.Connections.Count > 0) {
+                var Label2 = new Label();
+                Label2.ForeColor = Color.DimGray;
+                Label2.Padding = new Padding(3);
+                Label2.Font = new Font("Segoe UI", 9F, FontStyle.Regular);
+                Label2.Text = $"in {Server.Connections.Find(c => c.Owner.Name == accountName).Channel.Name}";
+                Label2.AutoSize = true;
+                Label2.BackColor = Color.White;
+                Label2.Location = new Point(Label.Width + 21, 15);
+                Panel.Controls.Add(Label2);
+            } else {
+                Status.State = AccountState.Offline;
+            }
             return Panel;
         }
 
         private void StatusElementPaint(object sender, PaintEventArgs e) {
             e.Graphics.SmoothingMode = SmoothingMode.HighQuality;
             SolidBrush Brush;
-            if (((DoubleBufferedPanel) sender).State) {
+            var Panel = (DoubleBufferedPanel) sender;
+            if (Panel.State == AccountState.Online) {
                 Brush = new SolidBrush(ColorTranslator.FromHtml("#1ED760"));
-            } else {
+            } else if (Panel.State == AccountState.Offline) {
                 Brush = new SolidBrush(Color.DimGray);
+            } else {
+                Brush = new SolidBrush(ColorTranslator.FromHtml("#FC3539"));
             }
             e.Graphics.FillEllipse(Brush, new RectangleF(0, 0, 19F, 19F));
         }

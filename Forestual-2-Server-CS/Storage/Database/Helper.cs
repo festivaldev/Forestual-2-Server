@@ -1,8 +1,7 @@
 ﻿using System.IO;
 using System.Linq;
 using System.Windows.Forms;
-using Forestual2CoreCS;
-using F2CE = Forestual2CoreCS.Enumerations;
+using F2Core;
 using Forestual2ServerCS.Internal;
 using Newtonsoft.Json;
 
@@ -53,12 +52,12 @@ namespace Forestual2ServerCS.Storage.Database
             return Server.Database.Accounts.Find(a => a.Name == name).Id;
         }
 
-        public static bool AccountHasFlags(Account account, params F2CE.Flag[] flags) {
+        public static bool AccountHasFlags(Account account, params Enumerations.Flag[] flags) {
             return AccountHasFlags(Server.Database, account, flags);
         }
 
-        public static bool AccountHasFlags(Values values, Account account, params F2CE.Flag[] flags) {
-            return flags.All(f => account.Flags.Contains(f) || values.Ranks.Find(r => r.Id == account.RankId).Flags.Contains(f) || account.Flags.Contains(F2CE.Flag.Wildcard) || values.Ranks.Find(r => r.Id == account.RankId).Flags.Contains(F2CE.Flag.Wildcard));
+        public static bool AccountHasFlags(Values values, Account account, params Enumerations.Flag[] flags) {
+            return flags.All(f => account.Flags.Contains(f) || values.Ranks.Find(r => r.Id == account.RankId).Flags.Contains(f) || account.Flags.Contains(Enumerations.Flag.Wildcard) || values.Ranks.Find(r => r.Id == account.RankId).Flags.Contains(Enumerations.Flag.Wildcard));
         }
     }
 }
