@@ -224,6 +224,7 @@ namespace Forestual2ServerCS.Internal
                                     SendMessageToAll(Message);
                                     Connection.Owner.Online = true;
                                     Database.Accounts.Find(a => a.Id == Connection.Owner.Id).Online = true;
+                                    SendTo(Connection.Owner.Id, string.Join("|", Enumerations.Action.SetRankList, JsonConvert.SerializeObject(Database.Ranks)));
                                     SendToAll(string.Join("|", Enumerations.Action.SetAccountList, JsonConvert.SerializeObject(GetAccountsWithoutPassword())));
                                     PrintToConsole($"{Connection.Owner.Name} (@{Connection.Owner.Id}) joined. <{((IPEndPoint) FClient.Client.RemoteEndPoint).Address}>", ColorTranslator.FromHtml("#07D159"));
 
