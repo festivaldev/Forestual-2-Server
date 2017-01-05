@@ -368,6 +368,19 @@ namespace Forestual2ServerCS.Internal
                             EventArgs.EndpointId = Connection.Owner.Id;
                             ListenerManager.InvokeSpecialEvent(EventArgs);
                             break;
+                        case Enumerations.Action.GetAccountData:
+                            var AccountName = Contents[1];
+                            var AccountId = Storage.Database.Helper.GetAccountId(AccountName);
+                            var Avatar = File.Exists(Path.Combine(Application.StartupPath, $"Resources\\Avatars\\{AccountId}.png")) ? File.ReadAllBytes(Path.Combine(Application.StartupPath, $"Resources\\Avatars\\{AccountId}.png")) : File.ReadAllBytes(Path.Combine(Application.StartupPath, "Resources\\Avatars\\default.png"));
+                            var Header = File.Exists(Path.Combine(Application.StartupPath, $"Resources\\Headers\\{AccountId}.png")) ? File.ReadAllBytes(Path.Combine(Application.StartupPath, $"Resources\\Headers\\{AccountId}.png")) : File.ReadAllBytes(Path.Combine(Application.StartupPath, "Resources\\Headers\\default.png"));
+                            var SelectedAccount = Database.Accounts.Find(a => a.Id == AccountId);
+                            var Online = SelectedAccount.Online;
+                            var Editable = Connection.Owner.Id == AccountId || Storage.Database.Helper.AccountHasFlags(Connection.Owner, Enumerations.Flag.CanEditAccounts);
+                            var Rank = Database.Ranks.Find(r => r.Id == SelectedAccount.RankId).Name;
+                            var Money = SelectedAccount.Deposit.ToString();
+                            var LastSeen = Online ? Connections.Find(c => c.Owner.Id == AccountId).Channel.Name : "Offline";
+                            SendTo(Connection.Owner.Id, string.Join("|", Enumerations.Action.SetAccountData, JsonConvert.SerializeObject(Avatar), JsonConvert.SerializeObject(Header), Online, AccountName, Editable, Rank, Money, LastSeen));
+                            break;
                         }
 
                         // Message Dequeueing
