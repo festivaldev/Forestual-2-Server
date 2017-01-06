@@ -54,6 +54,13 @@ namespace Forestual2ServerCS
             ListenerManager.InvokeEvent(Event.ConsoleInputReceived, tbxInput.Text);
             //End
 
+
+            // DEMO
+            if (tbxInput.Text == "/lockdown") {
+                Server.Lockdown = !Server.Lockdown;
+            }
+
+
             tbxInput.Clear();
         }
 

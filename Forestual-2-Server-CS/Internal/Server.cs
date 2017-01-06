@@ -42,7 +42,7 @@ namespace Forestual2ServerCS.Internal
         public static List<Connection> Connections = new List<Connection>();
         public static List<Channel> Channels = new List<Channel>();
         private Channel Forestual = new Channel();
-        private Account Root = new Account();
+        private Account ServerAccount = new Account();
 
         private RSACryptoServiceProvider PreServiceProvider = new RSACryptoServiceProvider(4096);
         private RSACryptoServiceProvider ServiceProvider = new RSACryptoServiceProvider(4096);
@@ -58,6 +58,8 @@ namespace Forestual2ServerCS.Internal
 
         private bool CancelMessageHandling;
         private Queue<F2Core.Message> MessageQueue = new Queue<F2Core.Message>();
+
+        public bool Lockdown { get; set; }
 
         public bool Start() {
             // Extension Management
@@ -118,9 +120,10 @@ namespace Forestual2ServerCS.Internal
             PreServiceProvider.FromXmlString(PublicKey);
             if (Storage.Localization.Helper.Exists(Config.ServerLanguage))
                 Lcl = Storage.Localization.Helper.GetLocalization(Config.ServerLanguage);
+            ServerAccount.Id = "Server";
             Forestual.Id = "lnr-forestual";
             Forestual.Name = "Forestual";
-            Forestual.Owner = Root;
+            Forestual.Owner = ServerAccount;
             Forestual.Persistent = true;
             Forestual.JoinRestrictionMode = Enumerations.ChannelJoinMode.Default;
             try {
@@ -282,11 +285,13 @@ namespace Forestual2ServerCS.Internal
                             }
                             // End
 
+                            F2Core.Message Result;
+
                             if (Contents[1].StartsWith("/")) {
                                 var CommandParts = Contents[1].Remove(0, 1).Split(' ');
                                 switch (CommandParts[0]) {
                                 case "versions":
-                                    var Message0 = new F2Core.Message {
+                                    Result = new F2Core.Message {
                                         Time = DateTime.Now.ToShortTimeString(),
                                         Type = Enumerations.MessageType.Left,
                                         RankColor = "#1E90FF",
@@ -294,7 +299,19 @@ namespace Forestual2ServerCS.Internal
                                         SenderPrefix = "[Server] Forestual 2",
                                         Content = $"Forestual 2 Server<br /><small>Version { new Version().ToLongString() }</small><br /><br />Forestual 2 Core<br /><small>Version { new F2Core.Compatibility.Version().ToLongString() }</small>"
                                     };
-                                    SendMessageTo(Connection.Owner.Id, Message0);
+                                    SendMessageTo(Connection.Owner.Id, Result);
+                                    break;
+                                case "lockdown":
+                                    Lockdown = !Lockdown;
+                                    Result = new F2Core.Message {
+                                        Time = DateTime.Now.ToShortTimeString(),
+                                        Type = Enumerations.MessageType.Left,
+                                        RankColor = "#1E90FF",
+                                        SenderId = "server",
+                                        SenderPrefix = "[Server] Forestual 2",
+                                        Content = $"Lockdown {(Lockdown ? "enabled" : "disabled")}."
+                                    };
+                                    SendMessageTo(Connection.Owner.Id, Result);
                                     break;
                                 case "clear":
                                     SendToChannel(Connection.Channel.Id, Enumerations.Action.ClearConversation.ToString());
@@ -317,26 +334,26 @@ namespace Forestual2ServerCS.Internal
                                         break;
                                     case "send":
                                         if (MyAccount.Deposit < Value) {
-                                            var Message1 = new F2Core.Message {
+                                            Result = new F2Core.Message {
                                                 Time = DateTime.Now.ToShortTimeString(),
                                                 Type = Enumerations.MessageType.Center,
                                                 RankColor = "#FC3539",
                                                 Content = "Your balance isn't high enough to perform this transaction."
                                             };
-                                            SendMessageTo(Connection.Owner.Id, Message1);
+                                            SendMessageTo(Connection.Owner.Id, Result);
                                         } else {
                                             MyAccount.Deposit -= Value;
                                             Account.Deposit += Value;
                                         }
                                         break;
                                     case "balance":
-                                        var Message2 = new F2Core.Message {
+                                        Result = new F2Core.Message {
                                             Time = DateTime.Now.ToShortTimeString(),
                                             Type = Enumerations.MessageType.Center,
                                             RankColor = Config.ServerBroadcastColor,
                                             Content = $"Your balance is {MyAccount.Deposit}."
                                         };
-                                        SendMessageTo(Connection.Owner.Id, Message2);
+                                        SendMessageTo(Connection.Owner.Id, Result);
                                         break;
                                     }
                                     Helper.Save();
@@ -344,7 +361,7 @@ namespace Forestual2ServerCS.Internal
                                     break;
                                 }
                             } else {
-                                var Message3 = new F2Core.Message {
+                                Result = new F2Core.Message {
                                     SenderId = Connection.Owner.Id,
                                     SenderPrefix = ComposePrefix(Connection.Owner.Id),
                                     RankColor = Database.Ranks.Find(r => r.Id == Connection.Owner.RankId).Color,
@@ -352,9 +369,9 @@ namespace Forestual2ServerCS.Internal
                                     Content = Contents[1],
                                     Type = Enumerations.MessageType.Left
                                 };
-                                SendMessageToAllExceptTo(Message3.SenderId, Message3, Connection.Channel.Id);
-                                Message3.Type = Enumerations.MessageType.Right;
-                                SendMessageTo(Message3.SenderId, Message3);
+                                SendMessageToAllExceptTo(Result.SenderId, Result, Connection.Channel.Id);
+                                Result.Type = Enumerations.MessageType.Right;
+                                SendMessageTo(Result.SenderId, Result);
                             }
                             break;
                         case Enumerations.Action.RegisterRecord:
@@ -461,7 +478,7 @@ namespace Forestual2ServerCS.Internal
         }
 
         public void CreatePunishment(Punishment punishment) {
-            punishment.CreatorId = Root.Id;
+            punishment.CreatorId = ServerAccount.Id;
             punishment.Id = PunishmentManager.GetRandomIdentifier(6);
             PunishmentManager.CreateRecord(punishment);
         }
@@ -529,14 +546,13 @@ namespace Forestual2ServerCS.Internal
             var Meta = new ServerMetaData {
                 AcceptsGuests = Config.MetaAcceptsGuests,
                 AcceptsRegistration = Config.MetaAcceptsRegistration,
-                AccountsInstantlyActivated = Config.MetaAccountsInstantlyActivated,
                 GuestsCanChooseName = Config.MetaGuestsCanChooseName,
                 Language = Config.ServerLanguage,
                 Name = Config.MetaServerName,
                 OperatorWebsiteUrl = Config.MetaWebsiteUrl,
                 OwnerId = Config.MetaOwnerId,
-                RequiresAuthentification = Config.MetaRequiresAuthentification,
                 RequiresInvitation = Config.MetaRequiresInvitation,
+                IsLockdown = Lockdown,
                 ServerVersion = new Version(),
                 ServerCoreVersion = new F2Core.Compatibility.Version().ToMediumString()
             };
