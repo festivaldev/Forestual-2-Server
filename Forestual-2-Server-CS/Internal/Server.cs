@@ -60,6 +60,7 @@ namespace Forestual2ServerCS.Internal
         private Queue<F2Core.Message> MessageQueue = new Queue<F2Core.Message>();
 
         public bool Lockdown { get; set; }
+        private bool Running;
 
         public bool Start() {
             // Extension Management
@@ -70,6 +71,9 @@ namespace Forestual2ServerCS.Internal
                     ExtensionManager.LoadExtension(File);
                 } catch {
                     PrintToConsole($"[ExtensionSystem] Loading the Extension \"{File.Split('\\').Last()}\" failed.", ColorTranslator.FromHtml("#FC3539"));
+
+                    TraceManager.Log($"Loading the Extension \"{File.Split('\\').Last()}\" failed.", "EXTS");
+
                 }
             }
             foreach (var Extension in ExtensionManager.Extensions) {
@@ -84,6 +88,9 @@ namespace Forestual2ServerCS.Internal
                         RangeStart = "Lowest";
                     }
                     PrintToConsole($"[{Extension.Name}] Extension skipped due to a Version Conflict.\nRequired CoreVersion: {RangeStart}\nCurrent CoreVersion: {CoreVersion.ToMediumString()}", ColorTranslator.FromHtml("#FC3539"));
+
+                    TraceManager.Log($"Skipped \"{Extension.Name}\" due to a version conflict. Required CoreVersion: {RangeStart}. Current CoreVersion: {CoreVersion.ToMediumString()}.", "EXTS");
+
                     Extension.Disabled = true;
                     continue;
                 }
@@ -95,15 +102,24 @@ namespace Forestual2ServerCS.Internal
                     Extension.OnEnable();
                     Extension.ServerListeners.ToList().ForEach(ListenerManager.RegisterListener);
                     PrintToConsole($"[{Extension.Name}] Extension enabled. Version: {Extension.Version.ToShortString()}", Color.LimeGreen);
+
+                    TraceManager.Log($"Extension \"{Extension.Name}\" (Version {Extension.Version.ToShortString()}) enabled.", "EXTS");
+
                 } catch {
                     PrintToConsole($"[{Extension.Name}] Enabling failed.", ColorTranslator.FromHtml("#FC3539"));
+
+                    TraceManager.Log($"Enabling the extension \"{Extension.Name}\" failed.", "EXTS");
                 }
             }
             ExtensionManager.Extensions.RemoveAll(e => e.Disabled);
             foreach (var Extension in ExtensionManager.Extensions) {
                 if (Extension.StorageNeeded) {
-                    if (!Directory.Exists(Path.Combine(Application.StartupPath, "Extensions", Extension.Namespace)))
+                    if (!Directory.Exists(Path.Combine(Application.StartupPath, "Extensions", Extension.Namespace))) {
                         Directory.CreateDirectory(Path.Combine(Application.StartupPath, "Extensions", Extension.Namespace));
+                        
+                        TraceManager.Log($"Extension \"{Extension.Name}\" created \"{Extension.Namespace}\".", "EXTS");
+
+                    }
                     Extension.StoragePath = Path.Combine(Application.StartupPath, "Extensions", Extension.Namespace);
                 }
                 Extension.OnRun();
@@ -140,15 +156,23 @@ namespace Forestual2ServerCS.Internal
             PunishmentManager.DisposeExceededRecords();
             Connected?.Invoke($"{Dns.GetHostEntry(Dns.GetHostName()).AddressList.ToList().Find(ip => ip.AddressFamily == AddressFamily.InterNetwork)}:{Config.ServerPort}");
 
+            TraceManager.Log($"Forestual 2 Server started on {Dns.GetHostEntry(Dns.GetHostName()).AddressList.ToList().Find(ip => ip.AddressFamily == AddressFamily.InterNetwork)}:{Config.ServerPort}.", "SRVR");
+
             // Extension Management
             ListenerManager.InvokeEvent(Event.ServerStarted, null);
             // End
 
+            Running = true;
             return true;
         }
 
         public void Stop() {
             try {
+
+                if (Running) {
+                    TraceManager.EndSession();
+                }
+
                 // Extension Management
                 ListenerManager.InvokeEvent(Event.ServerStopped, null);
                 foreach (var Extension in ExtensionManager.Extensions) {
@@ -162,6 +186,9 @@ namespace Forestual2ServerCS.Internal
                     Database.Accounts.ForEach(a => a.Online = false);
                     Helper.Save();
                 } catch { }
+
+
+                Running = false;
                 FServer.Stop();
                 ExitThreadOnPurpose = true;
                 WaitingThread.Abort();
@@ -176,10 +203,16 @@ namespace Forestual2ServerCS.Internal
                     var RawStreamContent = Connection.GetRawStreamContent();
                     var DRawStreamContent = Cryptography.RSADecrypt(RawStreamContent, ServiceProvider);
                     if (DRawStreamContent == Enumerations.Action.GetServerMetaData.ToString()) {
+                        
+                        TraceManager.Log($"{((IPEndPoint) FClient.Client.RemoteEndPoint).Address} requested meta data.", "NTWK");
+
                         Connection.SetRawStreamContent(Cryptography.RSAEncrypt(JsonConvert.SerializeObject(GetMetaData()), PreServiceProvider));
                         Connection.Dispose();
                         PunishmentManager.DisposeExceededRecords();
                     } else {
+
+                        TraceManager.Log($"{((IPEndPoint) FClient.Client.RemoteEndPoint).Address} started the login procedure.", "NTWK");
+
                         var SessionData = DRawStreamContent.Split('|');
                         var AesData = new AesData {
                             Key = Convert.FromBase64String(SessionData[0]),
@@ -204,7 +237,10 @@ namespace Forestual2ServerCS.Internal
                                     Connections.Add(Connection);
                                     var ListeningThread = new Thread(Listen);
                                     ListeningThread.Start(Connection);
-                                    Connection.SetStreamContent(string.Join("|", Enumerations.Action.LoginResult.ToString(), "hej"));
+
+                                    Connection.SessionId = PunishmentManager.GetRandomIdentifier(16);
+
+                                    Connection.SetStreamContent(string.Join("|", Enumerations.Action.LoginResult.ToString(), "hej", Connection.SessionId));
                                     var Flags = new List<Enumerations.Flag>();
                                     Flags.AddRange(Connection.Owner.Flags);
                                     Flags.AddRange(Database.Ranks.Find(r => r.Id == Connection.Owner.RankId).Flags);
@@ -231,6 +267,8 @@ namespace Forestual2ServerCS.Internal
                                     SendToAll(string.Join("|", Enumerations.Action.SetAccountList, JsonConvert.SerializeObject(GetAccountsWithoutPassword())));
                                     PrintToConsole($"{Connection.Owner.Name} (@{Connection.Owner.Id}) joined. <{((IPEndPoint) FClient.Client.RemoteEndPoint).Address}>", ColorTranslator.FromHtml("#07D159"));
 
+                                    TraceManager.Log($"Connection from {((IPEndPoint) FClient.Client.RemoteEndPoint).Address} assigned to \"{Connection.Owner.Id}\".", "NTWK");
+
                                     RefreshAccounts?.Invoke();
 
                                     // Extension Management
@@ -238,9 +276,16 @@ namespace Forestual2ServerCS.Internal
                                     // End
                                 }
                             } else {
+
+                                TraceManager.Log($"{((IPEndPoint) FClient.Client.RemoteEndPoint).Address} pretended to be \"{AuthData[0]}\" but didn't provided the correct password.", "NTWK");
+                                TraceManager.Log($"Connection from {((IPEndPoint) FClient.Client.RemoteEndPoint).Address} refused.", "NTWK");
+
                                 Connection.SetStreamContent(string.Join("|", Enumerations.Action.LoginResult, "authentificationFailed"));
                             }
                         } else {
+                            TraceManager.Log($"{((IPEndPoint) FClient.Client.RemoteEndPoint).Address} pretended to be \"{AuthData[0]}\" but this account is unknown.", "NTWK");
+                            TraceManager.Log($"Connection from {((IPEndPoint) FClient.Client.RemoteEndPoint).Address} refused.", "NTWK");
+
                             Connection.SetStreamContent(string.Join("|", Enumerations.Action.LoginResult, "accountUnknown"));
                         }
                     }
@@ -274,6 +319,11 @@ namespace Forestual2ServerCS.Internal
                         if (string.IsNullOrEmpty(Contents[0]) || string.IsNullOrWhiteSpace(Contents[0]))
                             continue;
                         var Type = (Enumerations.Action) Enum.Parse(typeof(Enumerations.Action), Contents[0]);
+
+                        if (Type != Enumerations.Action.Plain) {
+                            TraceManager.Log($"Received message from \"{Connection.Owner.Id}\". Content: \"{Content}\".","LSTN");   
+                        }
+
                         switch (Type) {
                         case Enumerations.Action.Plain:
 
