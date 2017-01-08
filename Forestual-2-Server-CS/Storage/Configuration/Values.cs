@@ -18,5 +18,6 @@
         public bool MetaAcceptsRegistration { get; set; }
         public bool MetaRequiresInvitation { get; set; }
         public bool MetaAccountsInstantlyActivated { get; set; }
+        public bool TracingEnabled { get; set; }
     }
 }

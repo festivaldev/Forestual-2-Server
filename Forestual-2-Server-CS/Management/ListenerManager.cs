@@ -19,7 +19,7 @@ namespace Forestual2ServerCS.Management
             try {
                 Listeners.FindAll(l => l.Event == e).ForEach(l => l.Delegate.DynamicInvoke(args));
             } catch (Exception Ex) {
-                ServerManagement.Server.PrintToConsole($"Exception:  {Ex.Message}\nStacktrace: {Ex.StackTrace}", ColorTranslator.FromHtml("#FC3539"));
+                ExtensionPool.Server.PrintToConsole($"Exception:  {Ex.Message}\nStacktrace: {Ex.StackTrace}", ColorTranslator.FromHtml("#FC3539"));
             }
         }
 
@@ -27,7 +27,7 @@ namespace Forestual2ServerCS.Management
             try {
                 Listeners.FindAll(l => l.Event == Event.Dynamic).ForEach(l => l.Delegate.DynamicInvoke(e));
             } catch (Exception Ex) {
-                ServerManagement.Server.PrintToConsole($"Exception:  {Ex.Message}\nStacktrace: {Ex.StackTrace}",ColorTranslator.FromHtml("#FC3539"));
+                ExtensionPool.Server.PrintToConsole($"Exception:  {Ex.Message}\nStacktrace: {Ex.StackTrace}",ColorTranslator.FromHtml("#FC3539"));
             }
         }
     }
