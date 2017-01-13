@@ -78,8 +78,9 @@
     <Compile Include="Management\ChannelManager.cs" />
     <Compile Include="Management\ExtensionManager.cs" />
     <Compile Include="Management\ListenerManager.cs" />
+    <Compile Include="Management\Luva.cs" />
     <Compile Include="Management\PunishmentManager.cs" />
-    <Compile Include="Management\TraceManager.cs" />
+    <Compile Include="Management\Eskaemo.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Storage\Configuration\Helper.cs" />

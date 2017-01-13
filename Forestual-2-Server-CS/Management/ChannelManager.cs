@@ -1,4 +1,6 @@
-﻿using F2Core;
+﻿using System.Linq;
+using System.Windows.Forms;
+using F2Core;
 using Forestual2ServerCS.Internal;
 using Newtonsoft.Json;
 
@@ -7,9 +9,8 @@ namespace Forestual2ServerCS.Management
     public class ChannelManager
     {
         public static void CreateChannel(Channel channel) {
-            Server.Channels.RemoveAll(c => c.MemberIds.Count == 0 && !c.Persistent);
             Server.Channels.Add(channel);
-            MoveAccountTo(channel.Owner, channel);
+            MoveAccountTo(channel.OwnerId, channel.Id);
         }
 
         public static void SendChannelList() {
@@ -21,8 +22,11 @@ namespace Forestual2ServerCS.Management
             Connection.Channel.MemberIds.Remove(account.Id);
             channel.MemberIds.Add(account.Id);
             Connection.Channel = channel;
+            Connection.SetStreamContent(Enumerations.Action.ClearConversation.ToString());
             Connection.SetStreamContent(string.Join("|", Enumerations.Action.SetChannel, JsonConvert.SerializeObject(channel)));
+            Server.Channels.RemoveAll(c => c.MemberIds.Count == 0 && !c.Persistent);
             SendChannelList();
+            Application.OpenForms.OfType<MainWindow>().ToList()[0].RefreshAccounts();
             // Inform old and new Channel
         }
 
