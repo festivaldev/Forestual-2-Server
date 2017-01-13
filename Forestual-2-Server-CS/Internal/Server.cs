@@ -63,85 +63,86 @@ namespace Forestual2ServerCS.Internal
         private bool Running;
 
         public bool Start() {
-            // Extension Management
+            Eskaemo.Trace("Eskaemo started tracing.", "ESKM");
             ExtensionManager.Extensions.Clear();
             ListenerManager.Listeners.Clear();
+
             foreach (var File in Directory.GetFiles(Application.StartupPath + "\\Extensions\\")) {
                 try {
                     ExtensionManager.LoadExtension(File);
                 } catch {
                     PrintToConsole($"[ExtensionSystem] Loading the Extension \"{File.Split('\\').Last()}\" failed.", ColorTranslator.FromHtml("#FC3539"));
-
-                    TraceManager.Log($"Loading the Extension \"{File.Split('\\').Last()}\" failed.", "EXTS");
-
+                    Eskaemo.Trace($"Loading the Extension \"{File.Split('\\').Last()}\" failed.", "EXTS");
                 }
             }
+
             foreach (var Extension in ExtensionManager.Extensions) {
-
-                // Version Check
-
                 var ExtensionVersion = Extension.Version;
                 var CoreVersion = new F2Core.Compatibility.Version();
                 if (!CoreVersion.InRange(ExtensionVersion)) {
                     var RangeStart = ExtensionVersion.SupportedVersion;
+
                     if (ExtensionVersion.SupportedVersion == VersioningProfiler.Lowest.ToMediumString()) {
                         RangeStart = "Lowest";
                     }
+
                     PrintToConsole($"[{Extension.Name}] Extension skipped due to a Version Conflict.\nRequired CoreVersion: {RangeStart}\nCurrent CoreVersion: {CoreVersion.ToMediumString()}", ColorTranslator.FromHtml("#FC3539"));
-
-                    TraceManager.Log($"Skipped \"{Extension.Name}\" due to a version conflict. Required CoreVersion: {RangeStart}. Current CoreVersion: {CoreVersion.ToMediumString()}.", "EXTS");
-
+                    Eskaemo.Trace($"Skipped \"{Extension.Name}\" due to a version conflict. Required CoreVersion: {RangeStart}. Current CoreVersion: {CoreVersion.ToMediumString()}.", "EXTS");
                     Extension.Disabled = true;
                     continue;
                 }
 
-                // End
-
                 PrintToConsole($"[{Extension.Name}] Enabling...", Color.DarkSlateGray);
+
                 try {
                     Extension.OnEnable();
                     Extension.ServerListeners.ToList().ForEach(ListenerManager.RegisterListener);
                     PrintToConsole($"[{Extension.Name}] Extension enabled. Version: {Extension.Version.ToShortString()}", Color.LimeGreen);
-
-                    TraceManager.Log($"Extension \"{Extension.Name}\" (Version {Extension.Version.ToShortString()}) enabled.", "EXTS");
+                    Eskaemo.Trace($"Extension \"{Extension.Name}\" (Version {Extension.Version.ToShortString()}) enabled.", "EXTS");
 
                 } catch {
                     PrintToConsole($"[{Extension.Name}] Enabling failed.", ColorTranslator.FromHtml("#FC3539"));
-
-                    TraceManager.Log($"Enabling the extension \"{Extension.Name}\" failed.", "EXTS");
+                    Eskaemo.Trace($"Enabling the extension \"{Extension.Name}\" failed.", "EXTS");
                 }
             }
+
             ExtensionManager.Extensions.RemoveAll(e => e.Disabled);
+
             foreach (var Extension in ExtensionManager.Extensions) {
                 if (Extension.StorageNeeded) {
                     if (!Directory.Exists(Path.Combine(Application.StartupPath, "Extensions", Extension.Namespace))) {
                         Directory.CreateDirectory(Path.Combine(Application.StartupPath, "Extensions", Extension.Namespace));
-                        
-                        TraceManager.Log($"Extension \"{Extension.Name}\" created \"{Extension.Namespace}\".", "EXTS");
+
+                        Eskaemo.Trace($"Extension \"{Extension.Name}\" created \"{Extension.Namespace}\".", "EXTS");
 
                     }
                     Extension.StoragePath = Path.Combine(Application.StartupPath, "Extensions", Extension.Namespace);
                 }
                 Extension.OnRun();
             }
-            // End
 
             try {
                 File.Copy(Application.StartupPath + "\\database.json", Application.StartupPath + "\\database.json.bak");
                 File.Copy(Application.StartupPath + "\\config.json", Application.StartupPath + "\\config.json.bak");
             } catch { }
+
             Connections.Clear();
             ExitThreadOnPurpose = false;
             ServiceProvider.FromXmlString(PrivateKey);
             PreServiceProvider.FromXmlString(PublicKey);
-            if (Storage.Localization.Helper.Exists(Config.ServerLanguage))
+
+            if (Storage.Localization.Helper.Exists(Config.ServerLanguage)) {
                 Lcl = Storage.Localization.Helper.GetLocalization(Config.ServerLanguage);
+            }
+
             ServerAccount.Id = "Server";
-            Forestual.Id = "lnr-forestual";
+            Forestual.Id = "forestual";
             Forestual.Name = "Forestual";
-            Forestual.Owner = ServerAccount;
+            Forestual.OwnerId = ServerAccount.Id;
+            Forestual.Capacity = -1;
             Forestual.Persistent = true;
             Forestual.JoinRestrictionMode = Enumerations.ChannelJoinMode.Default;
+
             try {
                 FServer = new TcpListener(FIPEndPnt);
                 FServer.Start();
@@ -150,43 +151,36 @@ namespace Forestual2ServerCS.Internal
             } catch {
                 return false;
             }
+
             Channels.RemoveAll(c => c.Persistent);
             Channels.AddRange(Database.Channels);
             Channels.Add(Forestual);
             PunishmentManager.DisposeExceededRecords();
             Connected?.Invoke($"{Dns.GetHostEntry(Dns.GetHostName()).AddressList.ToList().Find(ip => ip.AddressFamily == AddressFamily.InterNetwork)}:{Config.ServerPort}");
-
-            TraceManager.Log($"Forestual 2 Server started on {Dns.GetHostEntry(Dns.GetHostName()).AddressList.ToList().Find(ip => ip.AddressFamily == AddressFamily.InterNetwork)}:{Config.ServerPort}.", "SRVR");
-
-            // Extension Management
+            Eskaemo.Trace($"Forestual 2 Server started on {Dns.GetHostEntry(Dns.GetHostName()).AddressList.ToList().Find(ip => ip.AddressFamily == AddressFamily.InterNetwork)}:{Config.ServerPort}.", "SRVR");
             ListenerManager.InvokeEvent(Event.ServerStarted, null);
-            // End
-
             Running = true;
             return true;
         }
 
         public void Stop() {
             try {
-
                 if (Running) {
-                    TraceManager.EndSession();
+                    Eskaemo.Trace("Eskaemo stopped tracing.", "ESKM");
+                    Eskaemo.EndSession();
                 }
 
-                // Extension Management
                 ListenerManager.InvokeEvent(Event.ServerStopped, null);
                 foreach (var Extension in ExtensionManager.Extensions) {
                     Extension.OnDisable();
                     PrintToConsole($"[{Extension.Name}] Extension disabled.", Color.DarkSlateGray);
                 }
-                // End
 
                 try {
                     SendToAll(string.Join("|", Enumerations.Action.Disconnect.ToString(), Config.ServerShutdownMessage));
                     Database.Accounts.ForEach(a => a.Online = false);
                     Helper.Save();
                 } catch { }
-
 
                 Running = false;
                 FServer.Stop();
@@ -202,32 +196,35 @@ namespace Forestual2ServerCS.Internal
                     var Connection = new Connection(FClient.GetStream());
                     var RawStreamContent = Connection.GetRawStreamContent();
                     var DRawStreamContent = Cryptography.RSADecrypt(RawStreamContent, ServiceProvider);
-                    if (DRawStreamContent == Enumerations.Action.GetServerMetaData.ToString()) {
-                        
-                        TraceManager.Log($"{((IPEndPoint) FClient.Client.RemoteEndPoint).Address} requested meta data.", "NTWK");
 
+                    if (DRawStreamContent == Enumerations.Action.GetServerMetaData.ToString()) {
+                        Eskaemo.Trace($"{((IPEndPoint) FClient.Client.RemoteEndPoint).Address} requested meta data.", "NTWK");
                         Connection.SetRawStreamContent(Cryptography.RSAEncrypt(JsonConvert.SerializeObject(GetMetaData()), PreServiceProvider));
                         Connection.Dispose();
                         PunishmentManager.DisposeExceededRecords();
                     } else {
-
-                        TraceManager.Log($"{((IPEndPoint) FClient.Client.RemoteEndPoint).Address} started the login procedure.", "NTWK");
-
+                        Eskaemo.Trace($"{((IPEndPoint) FClient.Client.RemoteEndPoint).Address} started the login procedure.", "NTWK");
                         var SessionData = DRawStreamContent.Split('|');
+
                         var AesData = new AesData {
                             Key = Convert.FromBase64String(SessionData[0]),
                             IV = Convert.FromBase64String(SessionData[1])
                         };
+
                         Connection.AesData = AesData;
                         Connection.HmacKey = Convert.FromBase64String(SessionData[2]);
                         var AuthData = Connection.GetStreamContent().Split('|');
+
                         if (Helper.AccountExists(AuthData[0])) {
                             var Account = Helper.GetAccount(AuthData[0]);
+
                             if (Connections.Any(c => c.Owner.Id == AuthData[0])) {
                                 continue;
                             }
+
                             if (Account.Password == AuthData[1]) {
                                 var PunishmentId = PunishmentManager.CheckForRecords(Account.Id, Enumerations.PunishmentType.Bann, Enumerations.PunishmentType.BannTemporarily);
+
                                 if (PunishmentId != "-1") {
                                     var Punishment = PunishmentManager.GetRecord(PunishmentId);
                                     Connection.SetStreamContent(string.Join("|", Enumerations.Action.SetState.ToString(), Enumerations.ClientState.Banned.ToString(), JsonConvert.SerializeObject(Punishment)));
@@ -237,55 +234,45 @@ namespace Forestual2ServerCS.Internal
                                     Connections.Add(Connection);
                                     var ListeningThread = new Thread(Listen);
                                     ListeningThread.Start(Connection);
-
                                     Connection.SessionId = PunishmentManager.GetRandomIdentifier(16);
-
                                     Connection.SetStreamContent(string.Join("|", Enumerations.Action.LoginResult.ToString(), "hej", Connection.SessionId));
-                                    var Flags = new List<Enumerations.Flag>();
-                                    Flags.AddRange(Connection.Owner.Flags);
-                                    Flags.AddRange(Database.Ranks.Find(r => r.Id == Connection.Owner.RankId).Flags);
-                                    Connection.SetStreamContent(string.Join("|", Enumerations.Action.SetFlags, JsonConvert.SerializeObject(Flags)));
+                                    var LuvaValues = new List<string>();
+                                    LuvaValues.AddRange(Connection.Owner.LuvaValues);
+                                    LuvaValues.AddRange(Database.Ranks.Find(r => r.Id == Connection.Owner.RankId).LuvaValues);
+                                    Connection.SetStreamContent(string.Join("|", Enumerations.Action.SetLuvaValues, JsonConvert.SerializeObject(LuvaValues)));
                                     Forestual.MemberIds.Add(Account.Id);
                                     ChannelManager.SendChannelList();
-
-                                    // Extension Management
                                     var ExtensionPaths = new List<string>();
                                     ExtensionManager.Extensions.FindAll(e => e.ClientInstance).ForEach(e => ExtensionPaths.Add(e.Path));
                                     ExtensionPaths.ForEach(e => Connection.SetStreamContent(string.Join("|", Enumerations.Action.ExtensionTransport.ToString(), JsonConvert.SerializeObject(File.ReadAllBytes(e)))));
-                                    // End
 
                                     var Message = new F2Core.Message {
                                         Time = DateTime.Now.ToShortTimeString(),
                                         Type = Enumerations.MessageType.Center,
                                         Content = $"{Connection.Owner.Name} (@{Connection.Owner.Id}) hat den Chat betreten."
-                                        // Demo Purposes
                                     };
+
                                     SendMessageToAll(Message);
                                     Connection.Owner.Online = true;
                                     Database.Accounts.Find(a => a.Id == Connection.Owner.Id).Online = true;
                                     SendTo(Connection.Owner.Id, string.Join("|", Enumerations.Action.SetRankList, JsonConvert.SerializeObject(Database.Ranks)));
                                     SendToAll(string.Join("|", Enumerations.Action.SetAccountList, JsonConvert.SerializeObject(GetAccountsWithoutPassword())));
                                     PrintToConsole($"{Connection.Owner.Name} (@{Connection.Owner.Id}) joined. <{((IPEndPoint) FClient.Client.RemoteEndPoint).Address}>", ColorTranslator.FromHtml("#07D159"));
-
-                                    TraceManager.Log($"Connection from {((IPEndPoint) FClient.Client.RemoteEndPoint).Address} assigned to \"{Connection.Owner.Id}\".", "NTWK");
-
+                                    Eskaemo.Trace($"Connection from {((IPEndPoint) FClient.Client.RemoteEndPoint).Address} assigned to \"{Connection.Owner.Id}\".", "NTWK");
+                                    Eskaemo.TraceIndented($"SessionId: {Connection.SessionId}");
                                     RefreshAccounts?.Invoke();
-
-                                    // Extension Management
                                     ListenerManager.InvokeEvent(Event.ClientConnected, Connection.Owner.Id);
-                                    // End
                                 }
+
                             } else {
-
-                                TraceManager.Log($"{((IPEndPoint) FClient.Client.RemoteEndPoint).Address} pretended to be \"{AuthData[0]}\" but didn't provided the correct password.", "NTWK");
-                                TraceManager.Log($"Connection from {((IPEndPoint) FClient.Client.RemoteEndPoint).Address} refused.", "NTWK");
-
+                                Eskaemo.Trace($"{((IPEndPoint) FClient.Client.RemoteEndPoint).Address} pretended to be \"{AuthData[0]}\" but didn't provided the correct password.", "NTWK");
+                                Eskaemo.TraceIndented($"Connection from {((IPEndPoint) FClient.Client.RemoteEndPoint).Address} refused.");
                                 Connection.SetStreamContent(string.Join("|", Enumerations.Action.LoginResult, "authentificationFailed"));
                             }
-                        } else {
-                            TraceManager.Log($"{((IPEndPoint) FClient.Client.RemoteEndPoint).Address} pretended to be \"{AuthData[0]}\" but this account is unknown.", "NTWK");
-                            TraceManager.Log($"Connection from {((IPEndPoint) FClient.Client.RemoteEndPoint).Address} refused.", "NTWK");
 
+                        } else {
+                            Eskaemo.Trace($"{((IPEndPoint) FClient.Client.RemoteEndPoint).Address} pretended to be \"{AuthData[0]}\" but this account is unknown.", "NTWK");
+                            Eskaemo.TraceIndented($"Connection from {((IPEndPoint) FClient.Client.RemoteEndPoint).Address} refused.");
                             Connection.SetStreamContent(string.Join("|", Enumerations.Action.LoginResult, "accountUnknown"));
                         }
                     }
@@ -296,51 +283,52 @@ namespace Forestual2ServerCS.Internal
         private void Listen(object o) {
             var Connection = (Connection) o;
             while (true) {
+
                 if (ExitThreadOnPurpose) {
                     return;
                 }
+
                 try {
                     var Content = Connection.GetStreamContent();
-
                     var PunishmentId = PunishmentManager.CheckForRecords(Connection.Owner.Id, Enumerations.PunishmentType.Mute);
+
                     if (PunishmentId != "-1") {
                         var RemainingTime = PunishmentManager.GetRecord(PunishmentId).EndDate.Subtract(DateTime.Now);
+
                         var Message = new F2Core.Message {
                             Time = DateTime.Now.ToShortTimeString(),
                             Type = Enumerations.MessageType.Center,
                             RankColor = "#FC3539",
                             Content = $"Your mute still lasts {RemainingTime.Days} days, {RemainingTime.Hours} hours, {RemainingTime.Minutes} minutes and {RemainingTime.Seconds} seconds."
                         };
+
                         SendMessageTo(Connection.Owner.Id, Message);
                         continue;
                     }
+
                     try {
                         var Contents = Content.Split('|');
-                        if (string.IsNullOrEmpty(Contents[0]) || string.IsNullOrWhiteSpace(Contents[0]))
-                            continue;
-                        var Type = (Enumerations.Action) Enum.Parse(typeof(Enumerations.Action), Contents[0]);
 
-                        if (Type != Enumerations.Action.Plain) {
-                            TraceManager.Log($"Received message from \"{Connection.Owner.Id}\". Content: \"{Content}\".","LSTN");   
+                        if (string.IsNullOrEmpty(Contents[0]) || string.IsNullOrWhiteSpace(Contents[0])) {
+                            continue;
                         }
+
+                        var Type = (Enumerations.Action) Enum.Parse(typeof(Enumerations.Action), Contents[0]);
 
                         switch (Type) {
                         case Enumerations.Action.Plain:
-
-                            // Extension Management
                             ListenerManager.InvokeEvent(Event.ClientMessageReceived, Connection.Owner.Id, Contents[1]);
                             if (CancelMessageHandling) {
                                 CancelMessageHandling = false;
                                 continue;
                             }
-                            // End
 
                             F2Core.Message Result;
 
                             if (Contents[1].StartsWith("/")) {
                                 var CommandParts = Contents[1].Remove(0, 1).Split(' ');
                                 switch (CommandParts[0]) {
-                                case "versions":
+                                case "debug:versions":
                                     Result = new F2Core.Message {
                                         Time = DateTime.Now.ToShortTimeString(),
                                         Type = Enumerations.MessageType.Left,
@@ -349,10 +337,24 @@ namespace Forestual2ServerCS.Internal
                                         SenderPrefix = "[Server] Forestual 2",
                                         Content = $"Forestual 2 Server<br /><small>Version { new Version().ToLongString() }</small><br /><br />Forestual 2 Core<br /><small>Version { new F2Core.Compatibility.Version().ToLongString() }</small>"
                                     };
+
+                                    SendMessageTo(Connection.Owner.Id, Result);
+                                    break;
+                                case "debug:channel":
+                                    Result = new F2Core.Message {
+                                        Time = DateTime.Now.ToShortTimeString(),
+                                        Type = Enumerations.MessageType.Left,
+                                        RankColor = "#1E90FF",
+                                        SenderId = "server",
+                                        SenderPrefix = "[Server] Forestual 2",
+                                        Content = $"You are in Channel { Connection.Channel.Name } (#{ Connection.Channel.Id })."
+                                    };
+
                                     SendMessageTo(Connection.Owner.Id, Result);
                                     break;
                                 case "lockdown":
                                     Lockdown = !Lockdown;
+
                                     Result = new F2Core.Message {
                                         Time = DateTime.Now.ToShortTimeString(),
                                         Type = Enumerations.MessageType.Left,
@@ -361,6 +363,7 @@ namespace Forestual2ServerCS.Internal
                                         SenderPrefix = "[Server] Forestual 2",
                                         Content = $"Lockdown {(Lockdown ? "enabled" : "disabled")}."
                                     };
+
                                     SendMessageTo(Connection.Owner.Id, Result);
                                     break;
                                 case "clear":
@@ -370,6 +373,7 @@ namespace Forestual2ServerCS.Internal
                                     var Account = CommandParts.Length >= 3 ? Helper.GetAccount(CommandParts[2]) : null;
                                     var MyAccount = Helper.GetAccount(Connection.Owner.Id);
                                     var Value = CommandParts.Length >= 4 ? int.Parse(CommandParts[3]) : 0;
+
                                     switch (CommandParts[1]) {
                                     case "add":
                                         Account.Deposit += Value;
@@ -384,12 +388,14 @@ namespace Forestual2ServerCS.Internal
                                         break;
                                     case "send":
                                         if (MyAccount.Deposit < Value) {
+
                                             Result = new F2Core.Message {
                                                 Time = DateTime.Now.ToShortTimeString(),
                                                 Type = Enumerations.MessageType.Center,
                                                 RankColor = "#FC3539",
                                                 Content = "Your balance isn't high enough to perform this transaction."
                                             };
+
                                             SendMessageTo(Connection.Owner.Id, Result);
                                         } else {
                                             MyAccount.Deposit -= Value;
@@ -403,9 +409,11 @@ namespace Forestual2ServerCS.Internal
                                             RankColor = Config.ServerBroadcastColor,
                                             Content = $"Your balance is {MyAccount.Deposit}."
                                         };
+
                                         SendMessageTo(Connection.Owner.Id, Result);
                                         break;
                                     }
+
                                     Helper.Save();
                                     Database = Helper.GetDatabase();
                                     break;
@@ -419,6 +427,7 @@ namespace Forestual2ServerCS.Internal
                                     Content = Contents[1],
                                     Type = Enumerations.MessageType.Left
                                 };
+
                                 SendMessageToAllExceptTo(Result.SenderId, Result, Connection.Channel.Id);
                                 Result.Type = Enumerations.MessageType.Right;
                                 SendMessageTo(Result.SenderId, Result);
@@ -442,49 +451,65 @@ namespace Forestual2ServerCS.Internal
                             var Header = File.Exists(Path.Combine(Application.StartupPath, $"Resources\\Headers\\{AccountId}.png")) ? File.ReadAllBytes(Path.Combine(Application.StartupPath, $"Resources\\Headers\\{AccountId}.png")) : File.ReadAllBytes(Path.Combine(Application.StartupPath, "Resources\\Headers\\default.png"));
                             var SelectedAccount = Database.Accounts.Find(a => a.Id == AccountId);
                             var Online = SelectedAccount.Online;
-                            var Editable = Connection.Owner.Id == AccountId || Storage.Database.Helper.AccountHasFlags(Connection.Owner, Enumerations.Flag.CanEditAccounts);
+                            var Editable = Connection.Owner.Id == AccountId;
                             var Rank = Database.Ranks.Find(r => r.Id == SelectedAccount.RankId).Name;
                             var Money = SelectedAccount.Deposit.ToString();
                             var LastSeen = Online ? Connections.Find(c => c.Owner.Id == AccountId).Channel.Name : "Offline";
                             SendTo(Connection.Owner.Id, string.Join("|", Enumerations.Action.SetAccountData, JsonConvert.SerializeObject(Avatar), JsonConvert.SerializeObject(Header), Online, AccountName, Editable, Rank, Money, LastSeen));
                             break;
+                        case Enumerations.Action.SendLuvaNotice:
+                            var Severity = Luva.GetSeverity(Contents[1]);
+                            Eskaemo.Trace($"Violation Notice received from \"{Connection.Owner.Id}\".", "LUVA");
+                            Eskaemo.TraceIndented($"Encountered action: {Contents[1]}");
+                            Eskaemo.TraceIndented($"Severity: {Severity.Description}");
+                            SendTo(Connection.Owner.Id, string.Join("|", Enumerations.Action.ShowLuvaNotice, Contents[1], JsonConvert.SerializeObject(Severity)));
+                            break;
+                        case Enumerations.Action.CreateChannel:
+                            var Channel = JsonConvert.DeserializeObject<Channel>(Contents[1]);
+                            Channel.OwnerId = Connection.Owner.Id;
+                            Channel.Persistent = false;
+                            ChannelManager.CreateChannel(Channel);
+                            break;
                         }
 
-                        // Message Dequeueing
                         while (MessageQueue.Count > 0) {
                             SendMessageToAll(MessageQueue.Dequeue());
                         }
-                        // End
+
                     } catch {
                         // Syntax Error in Command
+                        Eskaemo.Trace($"Received a message from \"{Connection.Owner.Id}\" that couldn't be interpreted!", "EXCP");
+                        Eskaemo.TraceIndented($"Content: {Content}");
                     }
                 } catch {
-                    // Extension Management
                     ListenerManager.InvokeEvent(Event.ClientDisconnected, null);
-                    // End
-
                     Connections.Remove(Connection);
+
                     var Message = new F2Core.Message {
                         Time = DateTime.Now.ToShortTimeString(),
                         Type = Enumerations.MessageType.Center,
                         Content = $"{Connection.Owner.Name} disconnected."
-                        // Demo Purposes
                     };
+
                     SendMessageToAll(Message);
                     Connection.Channel.MemberIds.Remove(Connection.Owner.Id);
-                    if (Connection.Channel.Owner == Connection.Owner)
-                        Connection.Channel.Owner = null;
+
+                    if (Connection.Channel.OwnerId == Connection.Owner.Id) {
+                        Connection.Channel.OwnerId = ServerAccount.Id;
+                    }
+
                     if (Connection.Channel.MemberIds.Count == 0 && !Connection.Channel.Persistent) {
                         Channels.Remove(Connection.Channel);
                         ChannelManager.SendChannelList();
                     }
+
                     Connection.Owner.Online = false;
                     Database.Accounts.Find(a => a.Id == Connection.Owner.Id).Online = false;
                     SendToAll(string.Join("|", Enumerations.Action.SetAccountList, JsonConvert.SerializeObject(GetAccountsWithoutPassword())));
                     PrintToConsole($"{Connection.Owner.Name} (@{Connection.Owner.Id}) disconnected.", ColorTranslator.FromHtml("#FC3539"));
-
+                    Eskaemo.Trace($"Connection to \"{Connection.Owner.Id}\" lost.", "NTWK");
+                    Eskaemo.TraceIndented("Connection disposed.");
                     RefreshAccounts?.Invoke();
-
                     Connection.Dispose();
                     return;
                 }
@@ -555,11 +580,7 @@ namespace Forestual2ServerCS.Internal
         }
 
         public string Serialize(object content, bool indented) {
-            if (indented)
-                return JsonConvert.SerializeObject(content, Formatting.Indented, new JsonSerializerSettings {
-                    ReferenceLoopHandling = ReferenceLoopHandling.Ignore
-                });
-            return JsonConvert.SerializeObject(content, Formatting.None, new JsonSerializerSettings {
+            return JsonConvert.SerializeObject(content, indented ? Formatting.Indented : Formatting.None, new JsonSerializerSettings {
                 ReferenceLoopHandling = ReferenceLoopHandling.Ignore
             });
         }
@@ -588,7 +609,7 @@ namespace Forestual2ServerCS.Internal
 
         private List<Account> GetAccountsWithoutPassword() {
             var Accounts = new List<Account>();
-            Database.Accounts.ForEach(a => Accounts.Add(new Account { Deposit = a.Deposit, Flags = a.Flags, Id = a.Id, Name = a.Name, Online = a.Online, Password = Database.Ranks.Find(r => r.Id == a.RankId).Color, RankId = a.RankId }));
+            Database.Accounts.ForEach(a => Accounts.Add(new Account { Deposit = a.Deposit, LuvaValues = a.LuvaValues, Id = a.Id, Name = a.Name, Online = a.Online, Password = Database.Ranks.Find(r => r.Id == a.RankId).Color, RankId = a.RankId }));
             return Accounts;
         }
 
@@ -606,6 +627,7 @@ namespace Forestual2ServerCS.Internal
                 ServerVersion = new Version(),
                 ServerCoreVersion = new F2Core.Compatibility.Version().ToMediumString()
             };
+
             return Meta;
         }
     }

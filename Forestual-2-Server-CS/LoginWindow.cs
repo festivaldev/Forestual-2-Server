@@ -22,7 +22,7 @@ namespace Forestual2ServerCS
             if (Storage.Database.Helper.AccountExists(Database, tbxAccountId.Text)) {
                 var Account = Storage.Database.Helper.GetAccount(Database, tbxAccountId.Text);
                 if (Account.Password == Cryptography.ComputeHash(tbxPassword.Text)) {
-                    if (Storage.Database.Helper.AccountHasFlags(Database, Account, Enumerations.Flag.CanControlServer)) {
+                    if (Storage.Database.Helper.AccountHasLuvaValue(Database, Account, "forestual.canControlServer")) {
                         if (IsTimeoutLogin) {
                             ((MainWindow) Owner).ConsoleLocked = false;
                             ((MainWindow) Owner).tmrLoginTimeout.Start();

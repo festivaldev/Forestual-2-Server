@@ -88,7 +88,7 @@ namespace Forestual2ServerCS
         private bool StartServer() {
             Server = new Server();
 
-            TraceManager.StartSession();
+            Eskaemo.BeginSession();
 
             ExtensionPool.RegisterServer(Server);
             Server.Connected += Connected;
@@ -169,7 +169,7 @@ namespace Forestual2ServerCS
             Focus();
         }
 
-        private void RefreshAccounts() {
+        public void RefreshAccounts() {
             Invoke(new DRefreshAccounts(DisplayAccounts));
         }
 

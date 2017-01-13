@@ -27,7 +27,7 @@ namespace Forestual2ServerCS.Storage.Database
 
         public static void Save() {
             Server.Database.Channels.Clear();
-            Server.Database.Channels.AddRange(Server.Channels.FindAll(c => c.Persistent && c.Id != "lnr-forestual"));
+            Server.Database.Channels.AddRange(Server.Channels.FindAll(c => c.Persistent && c.Id != "forestual"));
             File.WriteAllText(Application.StartupPath + "\\database.json", JsonConvert.SerializeObject(Server.Database, Formatting.Indented));
             Server.Database = GetDatabase();
         }
@@ -52,12 +52,12 @@ namespace Forestual2ServerCS.Storage.Database
             return Server.Database.Accounts.Find(a => a.Name == name).Id;
         }
 
-        public static bool AccountHasFlags(Account account, params Enumerations.Flag[] flags) {
-            return AccountHasFlags(Server.Database, account, flags);
+        public static bool AccountHasLuvaValue(Account account, params string[] flags) {
+            return AccountHasLuvaValue(Server.Database, account, flags);
         }
 
-        public static bool AccountHasFlags(Values values, Account account, params Enumerations.Flag[] flags) {
-            return flags.All(f => account.Flags.Contains(f) || values.Ranks.Find(r => r.Id == account.RankId).Flags.Contains(f) || account.Flags.Contains(Enumerations.Flag.Wildcard) || values.Ranks.Find(r => r.Id == account.RankId).Flags.Contains(Enumerations.Flag.Wildcard));
+        public static bool AccountHasLuvaValue(Values values, Account account, params string[] flags) {
+            return flags.All(f => account.LuvaValues.Contains(f) || values.Ranks.Find(r => r.Id == account.RankId).LuvaValues.Contains(f) || account.LuvaValues.Contains("luva.wildcard") || values.Ranks.Find(r => r.Id == account.RankId).LuvaValues.Contains("luva.wildcard"));
         }
     }
 }
