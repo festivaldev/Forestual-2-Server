@@ -26,7 +26,7 @@ namespace Forestual2ServerCS.Storage.Configuration
                 ServerPort = "42000",
                 ServerLanguage = "de-de",
                 ServerBroadcastColor = "#1E90FF",
-                ServerShutdownMessage = "Shutdown",
+                ServerShutdownMessage = "The server went offline!",
                 MetaServerName = "Forestual 2 Server",
                 MetaOwnerId = "server",
                 MetaWebsiteUrl = "https://festival.ml/",
