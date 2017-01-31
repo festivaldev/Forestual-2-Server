@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Drawing;
 using F2Core;
 using F2Core.Extension;
-using F2Core.Management;
 
 namespace Forestual2ServerCS.Management
 {

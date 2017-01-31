@@ -3,12 +3,12 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 using F2Core;
-using F2Core.Management;
+using F2Core.Extension;
 using Forestual2ServerCS.Internal;
 using Forestual2ServerCS.Management;
 using Microsoft.WindowsAPICodePack.Taskbar;
 
-namespace Forestual2ServerCS
+namespace Forestual2ServerCS.Forms
 {
     public partial class MainWindow : Form
     {
@@ -50,7 +50,7 @@ namespace Forestual2ServerCS
 
         private void btnSend_Click(object sender, EventArgs e) {
             // Extension Management
-            ListenerManager.InvokeEvent(Event.ConsoleInputReceived, tbxInput.Text);
+            ListenerManager.InvokeEvent(Event.ConsoleInputReceived,  tbxInput.Text);
             //End
 
 

@@ -1,7 +1,7 @@
 ﻿using System.Windows.Forms;
 using F2Core;
 
-namespace Forestual2ServerCS
+namespace Forestual2ServerCS.Forms
 {
     public partial class LoginWindow : Form
     {

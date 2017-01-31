@@ -1,6 +1,9 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using System.Windows.Forms;
 using F2Core;
+using F2Core.Extension;
+using Forestual2ServerCS.Forms;
 using Forestual2ServerCS.Internal;
 using Newtonsoft.Json;
 
@@ -10,7 +13,13 @@ namespace Forestual2ServerCS.Management
     {
         public static void CreateChannel(Channel channel) {
             Server.Channels.Add(channel);
+            ListenerManager.InvokeEvent(Event.ChannelCreated,  channel.Id);
             MoveAccountTo(channel.OwnerId, channel.Id);
+        }
+
+        public static void CloseChannel(Channel channel) {
+            MoveAllFromTo(channel.Id, "forestual");
+            Server.Channels.Remove(channel);
         }
 
         public static void SendChannelList() {
@@ -19,15 +28,29 @@ namespace Forestual2ServerCS.Management
 
         public static void MoveAccountTo(Account account, Channel channel) {
             var Connection = Server.Connections.Find(c => c.Owner == account);
+
+            ExtensionPool.Server.SendMessagePacketToChannelExceptTo(account.Id, Connection.Channel.Id, new MessagePacket {
+                Content = $"{account.Name} left the channel.",
+                Time = DateTime.Now.ToShortTimeString(),
+                Type = Enumerations.MessageType.Center
+            });
+
             Connection.Channel.MemberIds.Remove(account.Id);
             channel.MemberIds.Add(account.Id);
+
+            ExtensionPool.Server.SendMessagePacketToChannelExceptTo(account.Id, channel.Id, new MessagePacket {
+                Content = $"{account.Name} entered the channel.",
+                Time = DateTime.Now.ToShortTimeString(),
+                Type = Enumerations.MessageType.Center
+            });
+
+            ListenerManager.InvokeEvent(Event.ClientChannelChanged,  Connection.Owner.Id, channel.Id);
             Connection.Channel = channel;
             Connection.SetStreamContent(Enumerations.Action.ClearConversation.ToString());
             Connection.SetStreamContent(string.Join("|", Enumerations.Action.SetChannel, JsonConvert.SerializeObject(channel)));
             Server.Channels.RemoveAll(c => c.MemberIds.Count == 0 && !c.Persistent);
             SendChannelList();
             Application.OpenForms.OfType<MainWindow>().ToList()[0].RefreshAccounts();
-            // Inform old and new Channel
         }
 
         public static void MoveAccountTo(string accountId, string channelId) {

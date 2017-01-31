@@ -1,4 +1,4 @@
-﻿namespace Forestual2ServerCS
+﻿namespace Forestual2ServerCS.Forms
 {
     partial class LoginWindow
     {
@@ -154,7 +154,7 @@
             this.Name = "LoginWindow";
             this.ShowIcon = false;
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-            this.Text = "Forestual 2";
+            this.Text = "Forestual 2 Server";
             ((System.ComponentModel.ISupportInitialize)(this.PictureBox1)).EndInit();
             this.Panel1.ResumeLayout(false);
             this.Panel1.PerformLayout();
