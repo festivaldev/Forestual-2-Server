@@ -62,17 +62,23 @@
     <Compile Include="DoubleBufferedPanel.Designer.cs">
       <DependentUpon>DoubleBufferedPanel.cs</DependentUpon>
     </Compile>
-    <Compile Include="Internal\Server.cs" />
-    <Compile Include="LoginWindow.cs">
+    <Compile Include="Forms\ExtensionWindow.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="LoginWindow.Designer.cs">
+    <Compile Include="Forms\ExtensionWindow.Designer.cs">
+      <DependentUpon>ExtensionWindow.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Internal\Server.cs" />
+    <Compile Include="Forms\LoginWindow.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\LoginWindow.Designer.cs">
       <DependentUpon>LoginWindow.cs</DependentUpon>
     </Compile>
-    <Compile Include="MainWindow.cs">
+    <Compile Include="Forms\MainWindow.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="MainWindow.Designer.cs">
+    <Compile Include="Forms\MainWindow.Designer.cs">
       <DependentUpon>MainWindow.cs</DependentUpon>
     </Compile>
     <Compile Include="Management\ChannelManager.cs" />
@@ -90,10 +96,13 @@
     <Compile Include="Storage\Localization\Helper.cs" />
     <Compile Include="Storage\Localization\Values.cs" />
     <Compile Include="Version.cs" />
-    <EmbeddedResource Include="LoginWindow.resx">
+    <EmbeddedResource Include="Forms\ExtensionWindow.resx">
+      <DependentUpon>ExtensionWindow.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Forms\LoginWindow.resx">
       <DependentUpon>LoginWindow.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="MainWindow.resx">
+    <EmbeddedResource Include="Forms\MainWindow.resx">
       <DependentUpon>MainWindow.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">

@@ -7,7 +7,7 @@ using Newtonsoft.Json;
 
 namespace Forestual2ServerCS.Storage.Database
 {
-    public class Helper
+    public static class Helper
     {
         public static Values GetDatabase() {
             try {
@@ -52,7 +52,7 @@ namespace Forestual2ServerCS.Storage.Database
             return Server.Database.Accounts.Find(a => a.Name == name).Id;
         }
 
-        public static bool AccountHasLuvaValue(Account account, params string[] flags) {
+        public static bool AccountHasLuvaValue(this Account account, params string[] flags) {
             return AccountHasLuvaValue(Server.Database, account, flags);
         }
 
